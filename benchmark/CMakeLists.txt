@@ -3,6 +3,13 @@
 include(FetchContent)
 find_package(Threads REQUIRED)
 
+# Compiler-specific optimization flags
+if(MSVC)
+    set(OPT_FLAGS /O2 /DNDEBUG)
+else()
+    set(OPT_FLAGS -O3 -DNDEBUG)
+endif()
+
 # Fetch external CSV libraries for comparison
 message(STATUS "Fetching CSV libraries for benchmark comparison...")
 
@@ -61,9 +68,9 @@ target_link_libraries(csv_benchmark PRIVATE
     fast_csv_lib
     Threads::Threads
 )
-target_compile_options(csv_benchmark PRIVATE -O3 -DNDEBUG)
+target_compile_options(csv_benchmark PRIVATE ${OPT_FLAGS})
 
 # BlazeCSV-only benchmark (no external dependencies)
 add_executable(blazecsv_bench blazecsv_bench.cpp)
 target_link_libraries(blazecsv_bench PRIVATE blazecsv::blazecsv Threads::Threads)
-target_compile_options(blazecsv_bench PRIVATE -O3 -DNDEBUG)
+target_compile_options(blazecsv_bench PRIVATE ${OPT_FLAGS})

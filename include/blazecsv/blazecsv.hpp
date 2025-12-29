@@ -25,11 +25,24 @@
 // PLATFORM DETECTION & SIMD CONFIGURATION
 // =============================================================================
 
+// MSVC detection and prefetch macro
+#if defined(_MSC_VER)
+#define BLAZECSV_MSVC 1
+#define BLAZECSV_PREFETCH(addr, rw, locality) ((void)0)
+#else
+#define BLAZECSV_PREFETCH(addr, rw, locality) __builtin_prefetch(addr, rw, locality)
+#endif
+
+// SIMD detection
 #if defined(__ARM_NEON__) || defined(__ARM_NEON)
 #include <arm_neon.h>
 #define BLAZECSV_SIMD_NEON 1
-#elif defined(__SSE2__)
+#elif defined(__SSE2__) || (defined(_MSC_VER) && (defined(_M_X64) || defined(_M_IX86)))
+#ifdef _MSC_VER
+#include <intrin.h>
+#else
 #include <emmintrin.h>
+#endif
 #define BLAZECSV_SIMD_SSE2 1
 #endif
 
@@ -633,9 +646,12 @@ class alignas(64) Reader {  // Cache-line aligned
     static constexpr size_t PREFETCH_L1 = 64;    // One cache line
     static constexpr size_t PREFETCH_L2 = 4096;  // One page
 
+    // Empty placeholder for disabled features (MSVC-compatible)
+    struct Empty {};
+
     // Error tracking (only if enabled - zero bytes otherwise via [[no_unique_address]])
-    [[no_unique_address]] std::conditional_t<ErrorPolicy::enabled, ErrorInfo, char[0]> last_error_{};
-    [[no_unique_address]] std::conditional_t<ErrorPolicy::track_line, uint32_t, char[0]> line_number_{};
+    [[no_unique_address]] std::conditional_t<ErrorPolicy::enabled, ErrorInfo, Empty> last_error_{};
+    [[no_unique_address]] std::conditional_t<ErrorPolicy::track_line, uint32_t, Empty> line_number_{};
 
 public:
     explicit Reader(const std::string& filepath, bool skip_header = true)
@@ -690,8 +706,8 @@ public:
         while (current_ < end_) {
             // Dual-level prefetching
             if (current_ + PREFETCH_L2 < end_) {
-                __builtin_prefetch(current_ + PREFETCH_L1, 0, 3);  // L1, high temporal
-                __builtin_prefetch(current_ + PREFETCH_L2, 0, 2);  // L2
+                BLAZECSV_PREFETCH(current_ + PREFETCH_L1, 0, 3);  // L1, high temporal
+                BLAZECSV_PREFETCH(current_ + PREFETCH_L2, 0, 2);  // L2
             }
 
             if constexpr (ErrorPolicy::track_line) {
@@ -800,8 +816,8 @@ public:
 
         while (current_ < end_) {
             if (current_ + PREFETCH_L2 < end_) {
-                __builtin_prefetch(current_ + PREFETCH_L1, 0, 3);
-                __builtin_prefetch(current_ + PREFETCH_L2, 0, 2);
+                BLAZECSV_PREFETCH(current_ + PREFETCH_L1, 0, 3);
+                BLAZECSV_PREFETCH(current_ + PREFETCH_L2, 0, 2);
             }
 
             if constexpr (ErrorPolicy::track_line) {
@@ -1004,8 +1020,8 @@ private:
         while (current < end) {
             // Prefetch
             if (current + 4096 < end) {
-                __builtin_prefetch(current + 64, 0, 3);
-                __builtin_prefetch(current + 4096, 0, 2);
+                BLAZECSV_PREFETCH(current + 64, 0, 3);
+                BLAZECSV_PREFETCH(current + 4096, 0, 2);
             }
 
             if (*current == '\n') { ++current; continue; }

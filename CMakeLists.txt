@@ -33,8 +33,8 @@ target_include_directories(blazecsv INTERFACE
 
 target_compile_features(blazecsv INTERFACE cxx_std_23)
 
-# Platform-specific optimizations
-if(APPLE AND CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
+# Platform-specific optimizations (not for MSVC)
+if(NOT MSVC AND APPLE AND CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
     target_compile_options(blazecsv INTERFACE
         $<$<COMPILE_LANGUAGE:CXX>:-mcpu=apple-m1>
     )
@@ -73,18 +73,18 @@ install(DIRECTORY include/
 )
 
 install(EXPORT blazecsv-targets
-    FILE BlazeCSVConfig.cmake
+    FILE blazecsvConfig.cmake
     NAMESPACE blazecsv::
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/blazecsv
 )
 
 write_basic_package_version_file(
-    "${CMAKE_CURRENT_BINARY_DIR}/BlazeCSVConfigVersion.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/blazecsvConfigVersion.cmake"
     VERSION ${PROJECT_VERSION}
     COMPATIBILITY SameMajorVersion
 )
 
 install(FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/BlazeCSVConfigVersion.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/blazecsvConfigVersion.cmake"
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/blazecsv
 )
