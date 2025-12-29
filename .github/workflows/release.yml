@@ -1,0 +1,333 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  CMAKE_BUILD_TYPE: Release
+
+jobs:
+  # =============================================================================
+  # VALIDATE VERSION
+  # =============================================================================
+  validate:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine Version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ inputs.version }}"
+            TAG="v${VERSION}"
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+            VERSION="${TAG#v}"
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "Version: ${VERSION}"
+          echo "Tag: ${TAG}"
+
+      - name: Validate Version Format
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+            echo "Invalid version format: $VERSION"
+            echo "Expected format: X.Y.Z or X.Y.Z-suffix"
+            exit 1
+          fi
+          echo "Version format valid: $VERSION"
+
+      - name: Check Version in CMakeLists.txt
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          CMAKE_VERSION=$(grep -oP 'project\(blazecsv\s+VERSION\s+\K[0-9.]+' CMakeLists.txt || echo "not found")
+          echo "CMakeLists.txt version: $CMAKE_VERSION"
+          # Only compare major.minor.patch
+          BASE_VERSION=$(echo "$VERSION" | grep -oP '^[0-9]+\.[0-9]+\.[0-9]+')
+          if [[ "$CMAKE_VERSION" != "$BASE_VERSION" ]]; then
+            echo "WARNING: Version mismatch - tag: $BASE_VERSION, CMakeLists.txt: $CMAKE_VERSION"
+          fi
+
+  # =============================================================================
+  # BUILD & TEST
+  # =============================================================================
+  test:
+    name: Test ${{ matrix.os }}
+    needs: validate
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            name: Linux
+          - os: macos-14
+            name: macOS
+          - os: windows-2022
+            name: Windows
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -B build -DBLAZECSV_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }}
+
+      - name: Build
+        run: cmake --build build --config ${{ env.CMAKE_BUILD_TYPE }}
+
+      - name: Test
+        run: ctest --test-dir build --config ${{ env.CMAKE_BUILD_TYPE }} --output-on-failure
+
+  # =============================================================================
+  # CREATE SOURCE ARCHIVES
+  # =============================================================================
+  package:
+    name: Create Source Archives
+    needs: [validate, test]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create Source Directory
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+          mkdir -p dist/blazecsv-${VERSION}
+
+          # Copy source files
+          cp -r include dist/blazecsv-${VERSION}/
+          cp -r examples dist/blazecsv-${VERSION}/
+          cp -r test dist/blazecsv-${VERSION}/
+          cp -r benchmark dist/blazecsv-${VERSION}/
+          cp CMakeLists.txt dist/blazecsv-${VERSION}/
+          cp README.md dist/blazecsv-${VERSION}/
+          cp LICENSE dist/blazecsv-${VERSION}/
+          cp .clang-format dist/blazecsv-${VERSION}/
+
+      - name: Create tar.gz Archive
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+          cd dist
+          tar -czvf blazecsv-${VERSION}.tar.gz blazecsv-${VERSION}
+
+      - name: Create zip Archive
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+          cd dist
+          zip -r blazecsv-${VERSION}.zip blazecsv-${VERSION}
+
+      - name: Create Header-Only Package
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+          cp include/blazecsv/blazecsv.hpp dist/blazecsv-${VERSION}-header-only.hpp
+
+      - name: Calculate Checksums
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+          cd dist
+          sha256sum blazecsv-${VERSION}.tar.gz > blazecsv-${VERSION}.tar.gz.sha256
+          sha256sum blazecsv-${VERSION}.zip > blazecsv-${VERSION}.zip.sha256
+          sha256sum blazecsv-${VERSION}-header-only.hpp > blazecsv-${VERSION}-header-only.hpp.sha256
+
+      - name: Upload Archives
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-archives
+          path: |
+            dist/*.tar.gz
+            dist/*.zip
+            dist/*-header-only.hpp
+            dist/*.sha256
+
+  # =============================================================================
+  # GENERATE RELEASE NOTES
+  # =============================================================================
+  release-notes:
+    name: Generate Release Notes
+    needs: validate
+    runs-on: ubuntu-latest
+    outputs:
+      notes: ${{ steps.notes.outputs.notes }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate Release Notes
+        id: notes
+        run: |
+          VERSION="${{ needs.validate.outputs.version }}"
+          TAG="${{ needs.validate.outputs.tag }}"
+
+          # Get previous tag
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          # Generate notes
+          cat > /tmp/release_notes.md << 'NOTES_EOF'
+          ## What's New in v${VERSION}
+
+          ### Installation
+
+          **Header-only (recommended):**
+          ```cpp
+          // Copy blazecsv.hpp to your project and include:
+          #include "blazecsv.hpp"
+          ```
+
+          **CMake FetchContent:**
+          ```cmake
+          include(FetchContent)
+          FetchContent_Declare(
+              blazecsv
+              GIT_REPOSITORY https://github.com/yourusername/blazecsv.git
+              GIT_TAG ${TAG}
+          )
+          FetchContent_MakeAvailable(blazecsv)
+          target_link_libraries(your_target PRIVATE blazecsv::blazecsv)
+          ```
+
+          ### Quick Start
+
+          ```cpp
+          #include <blazecsv/blazecsv.hpp>
+
+          int main() {
+              blazecsv::TurboReader<7> reader("data.csv");
+              reader.for_each([](const auto& fields) {
+                  std::cout << fields[0].view() << "\n";
+              });
+          }
+          ```
+
+          ### Checksums
+
+          See the `.sha256` files attached to this release for verification.
+
+          NOTES_EOF
+
+          # Add commit log if there's a previous tag
+          if [[ -n "$PREV_TAG" ]]; then
+            echo "### Changes since $PREV_TAG" >> /tmp/release_notes.md
+            echo "" >> /tmp/release_notes.md
+            git log --pretty=format:"- %s (%h)" ${PREV_TAG}..HEAD >> /tmp/release_notes.md
+          fi
+
+          # Output for GitHub Actions (escape newlines)
+          NOTES=$(cat /tmp/release_notes.md)
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+  # =============================================================================
+  # CREATE GITHUB RELEASE
+  # =============================================================================
+  release:
+    name: Create GitHub Release
+    needs: [validate, test, package, release-notes]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download Archives
+        uses: actions/download-artifact@v4
+        with:
+          name: release-archives
+          path: dist
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.validate.outputs.tag }}
+          name: BlazeCSV ${{ needs.validate.outputs.tag }}
+          body: |
+            ## BlazeCSV ${{ needs.validate.outputs.version }}
+
+            **Blazing fast, header-only CSV parser for C++23**
+
+            ### Highlights
+
+            - 13M+ rows/second single-threaded parsing
+            - SIMD-accelerated delimiter detection (ARM NEON / x86 SSE2)
+            - Zero-copy field access with `std::string_view`
+            - Compile-time error and null policies
+            - Parallel parsing for multi-core systems
+
+            ### Downloads
+
+            | File | Description |
+            |------|-------------|
+            | `blazecsv-${{ needs.validate.outputs.version }}.tar.gz` | Full source archive (tar.gz) |
+            | `blazecsv-${{ needs.validate.outputs.version }}.zip` | Full source archive (zip) |
+            | `blazecsv-${{ needs.validate.outputs.version }}-header-only.hpp` | Single header file |
+
+            ### Installation
+
+            **Header-only:**
+            ```cpp
+            #include "blazecsv.hpp"  // Just copy the header!
+            ```
+
+            **CMake:**
+            ```cmake
+            FetchContent_Declare(blazecsv
+                GIT_REPOSITORY https://github.com/yourusername/blazecsv.git
+                GIT_TAG ${{ needs.validate.outputs.tag }})
+            FetchContent_MakeAvailable(blazecsv)
+            target_link_libraries(your_app PRIVATE blazecsv::blazecsv)
+            ```
+
+            ### Requirements
+
+            - C++23 compiler (GCC 13+, Clang 17+, MSVC 2022+)
+
+            ---
+
+            **Full Changelog**: https://github.com/${{ github.repository }}/compare/.../${{ needs.validate.outputs.tag }}
+          draft: false
+          prerelease: ${{ contains(needs.validate.outputs.version, '-') }}
+          files: |
+            dist/*
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+
+  # =============================================================================
+  # POST-RELEASE TASKS
+  # =============================================================================
+  post-release:
+    name: Post-Release Tasks
+    needs: [validate, release]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Notify Success
+        run: |
+          echo "🎉 BlazeCSV ${{ needs.validate.outputs.version }} released successfully!"
+          echo "Release URL: https://github.com/${{ github.repository }}/releases/tag/${{ needs.validate.outputs.tag }}"

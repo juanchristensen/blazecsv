@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions & Discussions
+    url: https://github.com/juanchristensen/blazecsv/discussions
+    about: Ask questions and discuss BlazeCSV usage
+  - name: Security Vulnerability
+    url: https://github.com/juanchristensen/blazecsv/security/advisories/new
+    about: Report security vulnerabilities privately

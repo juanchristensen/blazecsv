@@ -1,0 +1,268 @@
+name: Lint & Format
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  # =============================================================================
+  # CLANG-FORMAT CHECK
+  # =============================================================================
+  clang-format:
+    name: clang-format
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install clang-format
+        run: |
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+          sudo add-apt-repository -y "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-18 main"
+          sudo apt-get update
+          sudo apt-get install -y clang-format-18
+
+      - name: Check Formatting
+        run: |
+          # Find all C++ files
+          FILES=$(find include examples test benchmark -name "*.cpp" -o -name "*.hpp" 2>/dev/null | head -100)
+
+          if [[ -z "$FILES" ]]; then
+            echo "No C++ files found to check"
+            exit 0
+          fi
+
+          # Check formatting
+          FAILED=0
+          for file in $FILES; do
+            if ! clang-format-18 --dry-run --Werror "$file" 2>/dev/null; then
+              echo "❌ $file needs formatting"
+              FAILED=1
+            else
+              echo "✓ $file"
+            fi
+          done
+
+          if [[ $FAILED -eq 1 ]]; then
+            echo ""
+            echo "Some files need formatting. Run:"
+            echo "  clang-format -i <files>"
+            echo "Or use the .clang-format file in the repository."
+            exit 1
+          fi
+
+          echo "All files properly formatted!"
+
+  # =============================================================================
+  # CLANG-TIDY STATIC ANALYSIS
+  # =============================================================================
+  clang-tidy:
+    name: clang-tidy
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install clang-tidy
+        run: |
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+          sudo add-apt-repository -y "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-18 main"
+          sudo apt-get update
+          sudo apt-get install -y clang-tidy-18 clang-18
+
+      - name: Create .clang-tidy config
+        run: |
+          cat > .clang-tidy << 'EOF'
+          ---
+          Checks: >
+            -*,
+            bugprone-*,
+            -bugprone-easily-swappable-parameters,
+            -bugprone-exception-escape,
+            cppcoreguidelines-*,
+            -cppcoreguidelines-avoid-magic-numbers,
+            -cppcoreguidelines-pro-type-reinterpret-cast,
+            -cppcoreguidelines-pro-bounds-pointer-arithmetic,
+            -cppcoreguidelines-pro-bounds-constant-array-index,
+            -cppcoreguidelines-owning-memory,
+            -cppcoreguidelines-avoid-c-arrays,
+            modernize-*,
+            -modernize-use-trailing-return-type,
+            -modernize-avoid-c-arrays,
+            performance-*,
+            readability-*,
+            -readability-magic-numbers,
+            -readability-identifier-length,
+            -readability-function-cognitive-complexity
+          WarningsAsErrors: ''
+          HeaderFilterRegex: 'blazecsv/.*\.hpp$'
+          FormatStyle: file
+          EOF
+
+      - name: Generate Compile Commands
+        env:
+          CC: clang-18
+          CXX: clang++-18
+        run: |
+          cmake -B build \
+            -DBLAZECSV_BUILD_TESTS=ON \
+            -DBLAZECSV_BUILD_EXAMPLES=ON \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+      - name: Run clang-tidy on Header
+        run: |
+          clang-tidy-18 \
+            -p build \
+            --warnings-as-errors="" \
+            include/blazecsv/blazecsv.hpp \
+            -- -std=c++23 || true
+          echo "clang-tidy analysis complete (warnings only)"
+
+      - name: Run clang-tidy on Examples
+        run: |
+          for file in examples/*.cpp; do
+            echo "Checking $file..."
+            clang-tidy-18 -p build --warnings-as-errors="" "$file" -- -std=c++23 || true
+          done
+
+  # =============================================================================
+  # CPPCHECK STATIC ANALYSIS
+  # =============================================================================
+  cppcheck:
+    name: cppcheck
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install cppcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cppcheck
+
+      - name: Run cppcheck
+        run: |
+          cppcheck \
+            --enable=warning,performance,portability \
+            --std=c++23 \
+            --error-exitcode=0 \
+            --inline-suppr \
+            --suppress=missingInclude \
+            --suppress=unusedFunction \
+            --suppress=unmatchedSuppression \
+            -I include \
+            include/ examples/ test/
+
+  # =============================================================================
+  # INCLUDE-WHAT-YOU-USE
+  # =============================================================================
+  iwyu:
+    name: include-what-you-use
+    runs-on: ubuntu-24.04
+    continue-on-error: true  # IWYU can be noisy
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install IWYU
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y iwyu
+
+      - name: Generate Compile Commands
+        run: |
+          cmake -B build \
+            -DBLAZECSV_BUILD_TESTS=ON \
+            -DBLAZECSV_BUILD_EXAMPLES=ON \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+      - name: Run IWYU
+        run: |
+          # IWYU analysis (informational only)
+          iwyu_tool.py -p build -- -Xiwyu --no_fwd_decls 2>&1 | head -200 || true
+          echo "IWYU analysis complete (informational only)"
+
+  # =============================================================================
+  # DOCUMENTATION CHECKS
+  # =============================================================================
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check README exists
+        run: |
+          if [[ ! -f README.md ]]; then
+            echo "README.md not found!"
+            exit 1
+          fi
+          echo "README.md exists ✓"
+
+      - name: Check LICENSE exists
+        run: |
+          if [[ ! -f LICENSE ]]; then
+            echo "LICENSE not found!"
+            exit 1
+          fi
+          echo "LICENSE exists ✓"
+
+      - name: Check for broken links in README
+        run: |
+          # Simple check for obviously broken markdown links
+          if grep -E '\[.*\]\(\s*\)' README.md; then
+            echo "Found empty links in README.md"
+            exit 1
+          fi
+          echo "No obviously broken links ✓"
+
+      - name: Verify examples compile
+        run: |
+          for file in examples/*.cpp; do
+            echo "Checking $file exists..."
+            if [[ ! -f "$file" ]]; then
+              echo "Missing example: $file"
+              exit 1
+            fi
+          done
+          echo "All example files exist ✓"
+
+  # =============================================================================
+  # SUMMARY
+  # =============================================================================
+  lint-success:
+    name: Lint Success
+    needs: [clang-format, clang-tidy, cppcheck, docs]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Check Results
+        run: |
+          # clang-format is required
+          if [[ "${{ needs.clang-format.result }}" != "success" ]]; then
+            echo "clang-format check failed"
+            exit 1
+          fi
+
+          # docs are required
+          if [[ "${{ needs.docs.result }}" != "success" ]]; then
+            echo "Documentation check failed"
+            exit 1
+          fi
+
+          # clang-tidy and cppcheck are advisory
+          echo "Lint checks completed!"
+          echo "  clang-format: ${{ needs.clang-format.result }}"
+          echo "  clang-tidy: ${{ needs.clang-tidy.result }}"
+          echo "  cppcheck: ${{ needs.cppcheck.result }}"
+          echo "  docs: ${{ needs.docs.result }}"

@@ -1,0 +1,246 @@
+name: Sanitizers
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  schedule:
+    # Run weekly on Sunday at midnight
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+env:
+  CTEST_OUTPUT_ON_FAILURE: 1
+
+jobs:
+  # =============================================================================
+  # ADDRESS SANITIZER (ASan)
+  # =============================================================================
+  asan:
+    name: Address Sanitizer
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Clang
+        run: |
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+          sudo add-apt-repository -y "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-18 main"
+          sudo apt-get update
+          sudo apt-get install -y clang-18
+
+      - name: Configure with ASan
+        env:
+          CC: clang-18
+          CXX: clang++-18
+        run: |
+          cmake -B build \
+            -DBLAZECSV_BUILD_TESTS=ON \
+            -DBLAZECSV_BUILD_EXAMPLES=ON \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_FLAGS="-fsanitize=address -fno-omit-frame-pointer -g"
+
+      - name: Build
+        run: cmake --build build -j $(nproc)
+
+      - name: Run Tests with ASan
+        env:
+          ASAN_OPTIONS: detect_leaks=1:detect_stack_use_after_return=1:check_initialization_order=1:strict_init_order=1
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Run Examples with ASan
+        env:
+          ASAN_OPTIONS: detect_leaks=1
+        run: |
+          ./build/examples/basic
+          ./build/examples/trading_data
+          ./build/examples/error_handling
+
+  # =============================================================================
+  # UNDEFINED BEHAVIOR SANITIZER (UBSan)
+  # =============================================================================
+  ubsan:
+    name: Undefined Behavior Sanitizer
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Clang
+        run: |
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+          sudo add-apt-repository -y "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-18 main"
+          sudo apt-get update
+          sudo apt-get install -y clang-18
+
+      - name: Configure with UBSan
+        env:
+          CC: clang-18
+          CXX: clang++-18
+        run: |
+          cmake -B build \
+            -DBLAZECSV_BUILD_TESTS=ON \
+            -DBLAZECSV_BUILD_EXAMPLES=ON \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_FLAGS="-fsanitize=undefined -fno-omit-frame-pointer -g"
+
+      - name: Build
+        run: cmake --build build -j $(nproc)
+
+      - name: Run Tests with UBSan
+        env:
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Run Examples with UBSan
+        env:
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+        run: |
+          ./build/examples/basic
+          ./build/examples/trading_data
+          ./build/examples/error_handling
+
+  # =============================================================================
+  # THREAD SANITIZER (TSan)
+  # =============================================================================
+  tsan:
+    name: Thread Sanitizer
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Clang
+        run: |
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+          sudo add-apt-repository -y "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-18 main"
+          sudo apt-get update
+          sudo apt-get install -y clang-18
+
+      - name: Configure with TSan
+        env:
+          CC: clang-18
+          CXX: clang++-18
+        run: |
+          cmake -B build \
+            -DBLAZECSV_BUILD_TESTS=ON \
+            -DBLAZECSV_BUILD_EXAMPLES=ON \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_FLAGS="-fsanitize=thread -fno-omit-frame-pointer -g"
+
+      - name: Build
+        run: cmake --build build -j $(nproc)
+
+      - name: Run Tests with TSan
+        env:
+          TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Run Parallel Example with TSan
+        env:
+          TSAN_OPTIONS: halt_on_error=1
+        run: |
+          ./build/examples/parallel
+
+  # =============================================================================
+  # MEMORY SANITIZER (MSan) - Clang only
+  # =============================================================================
+  msan:
+    name: Memory Sanitizer
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Clang
+        run: |
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+          sudo add-apt-repository -y "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-18 main"
+          sudo apt-get update
+          sudo apt-get install -y clang-18
+
+      - name: Configure with MSan
+        env:
+          CC: clang-18
+          CXX: clang++-18
+        run: |
+          cmake -B build \
+            -DBLAZECSV_BUILD_TESTS=ON \
+            -DBLAZECSV_BUILD_EXAMPLES=ON \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_FLAGS="-fsanitize=memory -fno-omit-frame-pointer -g -fsanitize-memory-track-origins"
+
+      - name: Build
+        run: cmake --build build -j $(nproc)
+
+      - name: Run Tests with MSan
+        env:
+          MSAN_OPTIONS: halt_on_error=1
+        run: ctest --test-dir build --output-on-failure || true  # MSan can have false positives with mmap
+
+  # =============================================================================
+  # VALGRIND (Alternative memory checker)
+  # =============================================================================
+  valgrind:
+    name: Valgrind Memcheck
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y valgrind g++-13
+
+      - name: Configure
+        env:
+          CC: gcc-13
+          CXX: g++-13
+        run: |
+          cmake -B build \
+            -DBLAZECSV_BUILD_TESTS=ON \
+            -DBLAZECSV_BUILD_EXAMPLES=ON \
+            -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build
+        run: cmake --build build -j $(nproc)
+
+      - name: Run Tests with Valgrind
+        run: |
+          valgrind --leak-check=full --error-exitcode=1 \
+            --suppressions=/usr/share/doc/valgrind/examples/glibc-2.X.supp \
+            ./build/test/test_parsing
+
+      - name: Run Examples with Valgrind
+        run: |
+          valgrind --leak-check=full --error-exitcode=1 \
+            ./build/examples/basic
+
+  # =============================================================================
+  # SUMMARY
+  # =============================================================================
+  sanitizers-success:
+    name: All Sanitizers Passed
+    needs: [asan, ubsan, tsan, valgrind]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Check Results
+        run: |
+          if [[ "${{ needs.asan.result }}" != "success" ]] || \
+             [[ "${{ needs.ubsan.result }}" != "success" ]] || \
+             [[ "${{ needs.tsan.result }}" != "success" ]] || \
+             [[ "${{ needs.valgrind.result }}" != "success" ]]; then
+            echo "One or more sanitizer checks failed"
+            exit 1
+          fi
+          echo "All sanitizer checks passed!"
