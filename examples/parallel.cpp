@@ -98,25 +98,25 @@ int main() {
         };
         std::vector<ThreadLocal> thread_data(std::thread::hardware_concurrency());
 
-        // Get thread index from thread ID
-        std::atomic<size_t> thread_counter{0};
-        thread_local size_t my_thread_id = thread_counter.fetch_add(1);
+        // Use thread-safe atomic counters
+        std::atomic<double> atomic_value{0};
+        std::atomic<size_t> atomic_count{0};
 
         reader.for_each_parallel([&](const auto& fields) {
-            size_t tid = my_thread_id % thread_data.size();
             double price = fields[2].value_or(0.0);
             int64_t qty = fields[3].template value_or<int64_t>(0);
-            thread_data[tid].value += price * qty;
-            thread_data[tid].count++;
+            double row_value = price * static_cast<double>(qty);
+
+            // Atomic update for aggregation
+            double current = atomic_value.load(std::memory_order_relaxed);
+            while (!atomic_value.compare_exchange_weak(current, current + row_value,
+                   std::memory_order_relaxed)) {}
+            atomic_count.fetch_add(1, std::memory_order_relaxed);
         });
 
-        // Aggregate results
-        double total_value = 0;
-        size_t total_count = 0;
-        for (const auto& td : thread_data) {
-            total_value += td.value;
-            total_count += td.count;
-        }
+        // Get final values
+        double total_value = atomic_value.load();
+        size_t total_count = atomic_count.load();
 
         auto end = std::chrono::high_resolution_clock::now();
         auto duration_ms = std::chrono::duration<double, std::milli>(end - start).count();
