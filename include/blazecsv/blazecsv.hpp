@@ -72,8 +72,16 @@ inline unsigned blazecsv_ctz(unsigned mask) noexcept {
 #include <type_traits>
 #include <vector>
 
-// System headers for mmap (Unix)
-#if !defined(_WIN32)
+// System headers for mmap
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#else
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -341,13 +349,54 @@ BLAZECSV_HOT inline size_t find_newline(const char* data, size_t len) noexcept {
 class MmapSource {
     const char* data_ = nullptr;
     size_t size_ = 0;
+#if defined(_WIN32)
+    HANDLE file_handle_ = INVALID_HANDLE_VALUE;
+    HANDLE mapping_handle_ = nullptr;
+#else
     int fd_ = -1;
+#endif
 
 public:
     MmapSource() = default;
 
     explicit MmapSource(const std::string& path) {
-#if !defined(_WIN32)
+#if defined(_WIN32)
+        // Windows memory mapping
+        file_handle_ =
+            CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
+                        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
+        if (file_handle_ == INVALID_HANDLE_VALUE)
+            return;
+
+        LARGE_INTEGER file_size;
+        if (!GetFileSizeEx(file_handle_, &file_size)) {
+            CloseHandle(file_handle_);
+            file_handle_ = INVALID_HANDLE_VALUE;
+            return;
+        }
+        size_ = static_cast<size_t>(file_size.QuadPart);
+
+        if (size_ > 0) {
+            mapping_handle_ =
+                CreateFileMappingA(file_handle_, nullptr, PAGE_READONLY, 0, 0, nullptr);
+            if (!mapping_handle_) {
+                CloseHandle(file_handle_);
+                file_handle_ = INVALID_HANDLE_VALUE;
+                return;
+            }
+
+            data_ =
+                static_cast<const char*>(MapViewOfFile(mapping_handle_, FILE_MAP_READ, 0, 0, 0));
+            if (!data_) {
+                CloseHandle(mapping_handle_);
+                CloseHandle(file_handle_);
+                mapping_handle_ = nullptr;
+                file_handle_ = INVALID_HANDLE_VALUE;
+                return;
+            }
+        }
+#else
+        // Unix memory mapping
         fd_ = ::open(path.c_str(), O_RDONLY);
         if (fd_ < 0)
             return;
@@ -377,7 +426,14 @@ public:
     }
 
     ~MmapSource() {
-#if !defined(_WIN32)
+#if defined(_WIN32)
+        if (data_)
+            UnmapViewOfFile(data_);
+        if (mapping_handle_)
+            CloseHandle(mapping_handle_);
+        if (file_handle_ != INVALID_HANDLE_VALUE)
+            CloseHandle(file_handle_);
+#else
         if (data_ && data_ != MAP_FAILED)
             ::munmap(const_cast<char*>(data_), size_);
         if (fd_ >= 0)
@@ -385,26 +441,53 @@ public:
 #endif
     }
 
-    MmapSource(MmapSource&& o) noexcept : data_(o.data_), size_(o.size_), fd_(o.fd_) {
+    MmapSource(MmapSource&& o) noexcept
+        : data_(o.data_),
+          size_(o.size_)
+#if defined(_WIN32)
+          ,
+          file_handle_(o.file_handle_),
+          mapping_handle_(o.mapping_handle_)
+#else
+          ,
+          fd_(o.fd_)
+#endif
+    {
         o.data_ = nullptr;
         o.size_ = 0;
+#if defined(_WIN32)
+        o.file_handle_ = INVALID_HANDLE_VALUE;
+        o.mapping_handle_ = nullptr;
+#else
         o.fd_ = -1;
+#endif
     }
 
     MmapSource& operator=(MmapSource&& o) noexcept {
         if (this != &o) {
-#if !defined(_WIN32)
+#if defined(_WIN32)
+            if (data_)
+                UnmapViewOfFile(data_);
+            if (mapping_handle_)
+                CloseHandle(mapping_handle_);
+            if (file_handle_ != INVALID_HANDLE_VALUE)
+                CloseHandle(file_handle_);
+            file_handle_ = o.file_handle_;
+            mapping_handle_ = o.mapping_handle_;
+            o.file_handle_ = INVALID_HANDLE_VALUE;
+            o.mapping_handle_ = nullptr;
+#else
             if (data_ && data_ != MAP_FAILED)
                 ::munmap(const_cast<char*>(data_), size_);
             if (fd_ >= 0)
                 ::close(fd_);
+            fd_ = o.fd_;
+            o.fd_ = -1;
 #endif
             data_ = o.data_;
             size_ = o.size_;
-            fd_ = o.fd_;
             o.data_ = nullptr;
             o.size_ = 0;
-            o.fd_ = -1;
         }
         return *this;
     }
