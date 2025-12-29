@@ -74,8 +74,8 @@ jobs:
           # Apple Silicon (M1/M2)
           - os: macos-14
             arch: arm64
-          # Intel
-          - os: macos-13
+          # Intel (macos-15 with Intel runner)
+          - os: macos-15
             arch: x86_64
 
     steps:
@@ -129,7 +129,7 @@ jobs:
         run: cmake --build build --config ${{ env.CMAKE_BUILD_TYPE }}
 
       - name: Run Tests
-        run: ctest --test-dir build --config ${{ env.CMAKE_BUILD_TYPE }} --output-on-failure
+        run: ctest --test-dir build -C ${{ env.CMAKE_BUILD_TYPE }} --output-on-failure
 
       - name: Run Examples
         run: |
