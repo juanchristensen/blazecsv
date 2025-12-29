@@ -25,12 +25,23 @@
 // PLATFORM DETECTION & SIMD CONFIGURATION
 // =============================================================================
 
-// MSVC detection and prefetch macro
+// MSVC detection and compatibility macros
 #if defined(_MSC_VER)
 #define BLAZECSV_MSVC 1
 #define BLAZECSV_PREFETCH(addr, rw, locality) ((void)0)
+#define BLAZECSV_HOT
+// MSVC-compatible count trailing zeros
+inline unsigned blazecsv_ctz(unsigned mask) noexcept {
+    unsigned long index;
+    _BitScanForward(&index, mask);
+    return static_cast<unsigned>(index);
+}
 #else
 #define BLAZECSV_PREFETCH(addr, rw, locality) __builtin_prefetch(addr, rw, locality)
+#define BLAZECSV_HOT [[gnu::hot]]
+inline unsigned blazecsv_ctz(unsigned mask) noexcept {
+    return static_cast<unsigned>(__builtin_ctz(mask));
+}
 #endif
 
 // SIMD detection
@@ -195,7 +206,7 @@ namespace detail {
 
 /// Find first occurrence of delimiter, newline, or CR using SIMD
 /// Returns offset from data, or len if not found
-[[gnu::hot]] inline size_t find_field_end(const char* data, size_t len, char delim) noexcept {
+BLAZECSV_HOT inline size_t find_field_end(const char* data, size_t len, char delim) noexcept {
 #if BLAZECSV_SIMD_NEON
     if (len >= 16) {
         uint8x16_t delim_vec = vdupq_n_u8(static_cast<uint8_t>(delim));
@@ -247,7 +258,7 @@ namespace detail {
                 _mm_cmpeq_epi8(chunk, cr_vec));
             int mask = _mm_movemask_epi8(cmp);
             if (mask) {
-                return i + __builtin_ctz(mask);
+                return i + blazecsv_ctz(static_cast<unsigned>(mask));
             }
         }
 
@@ -269,7 +280,7 @@ namespace detail {
 }
 
 /// Find first newline using SIMD
-[[gnu::hot]] inline size_t find_newline(const char* data, size_t len) noexcept {
+BLAZECSV_HOT inline size_t find_newline(const char* data, size_t len) noexcept {
 #if BLAZECSV_SIMD_NEON
     if (len >= 16) {
         uint8x16_t nl_vec = vdupq_n_u8('\n');
@@ -303,7 +314,7 @@ namespace detail {
             __m128i chunk = _mm_loadu_si128(reinterpret_cast<const __m128i*>(data + i));
             int mask = _mm_movemask_epi8(_mm_cmpeq_epi8(chunk, nl_vec));
             if (mask) {
-                return i + __builtin_ctz(mask);
+                return i + blazecsv_ctz(static_cast<unsigned>(mask));
             }
         }
 
@@ -733,7 +744,7 @@ public:
     /// Maximum performance - raw pointers with SIMD
     /// Callback: void(const char** starts, const char** ends)
     template <typename Callback>
-    [[gnu::hot]] size_t for_each_raw(Callback&& callback) {
+    BLAZECSV_HOT size_t for_each_raw(Callback&& callback) {
         size_t count = 0;
         std::array<const char*, Columns> starts;
         std::array<const char*, Columns> ends;
@@ -824,19 +835,12 @@ public:
     /// FieldRef-based iteration with SIMD parsing
     /// Callback: void(const std::array<FieldRef, Columns>&)
     template <typename Callback>
-    [[gnu::hot]] size_t for_each(Callback&& callback) {
+    BLAZECSV_HOT size_t for_each(Callback&& callback) {
         return for_each_raw([&callback](const char** starts, const char** ends) {
             std::array<FieldRef, Columns> fields;
             // Unrolled for small column counts (compile-time)
-            if constexpr (Columns <= 8) {
-#pragma unroll
-                for (size_t i = 0; i < Columns; ++i) {
-                    fields[i] = FieldRef(starts[i], ends[i]);
-                }
-            } else {
-                for (size_t i = 0; i < Columns; ++i) {
-                    fields[i] = FieldRef(starts[i], ends[i]);
-                }
+            for (size_t i = 0; i < Columns; ++i) {
+                fields[i] = FieldRef(starts[i], ends[i]);
             }
             callback(fields);
         });
@@ -845,7 +849,7 @@ public:
     /// Process with early termination support
     /// Callback: bool(const std::array<FieldRef, Columns>&) - return false to stop
     template <typename Callback>
-    [[gnu::hot]] size_t for_each_until(Callback&& callback) {
+    BLAZECSV_HOT size_t for_each_until(Callback&& callback) {
         size_t count = 0;
         std::array<const char*, Columns> starts;
         std::array<const char*, Columns> ends;
