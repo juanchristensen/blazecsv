@@ -5,17 +5,17 @@
 #include <blazecsv/blazecsv.hpp>
 
 // External libraries
-#include <csv.hpp>           // vincentlaucsb/csv-parser
-#include <csv2/reader.hpp>   // p-ranav/csv2
-#include <rapidcsv.h>        // d99kris/rapidcsv
-#include <csv.h>             // ben-strasser/fast-cpp-csv-parser
+#include <csv.h>            // ben-strasser/fast-cpp-csv-parser
+#include <csv.hpp>          // vincentlaucsb/csv-parser
+#include <csv2/reader.hpp>  // p-ranav/csv2
+#include <rapidcsv.h>       // d99kris/rapidcsv
 
-#include <iostream>
-#include <fstream>
 #include <chrono>
-#include <vector>
+#include <fstream>
 #include <iomanip>
+#include <iostream>
 #include <thread>
+#include <vector>
 
 // Benchmark configuration
 constexpr size_t NUM_ROWS = 1'000'000;
@@ -42,13 +42,9 @@ void generate_benchmark_data() {
     // Data rows
     for (size_t i = 0; i < NUM_ROWS; ++i) {
         double base = 150.0 + (i % 100);
-        f << "2024-01-" << std::setw(2) << std::setfill('0') << ((i % 28) + 1) << ","
-          << std::fixed << std::setprecision(2)
-          << base << ","
-          << (base + 2.5) << ","
-          << (base - 1.5) << ","
-          << (base + 0.75) << ","
-          << (1000000 + i * 100) << ","
+        f << "2024-01-" << std::setw(2) << std::setfill('0') << ((i % 28) + 1) << "," << std::fixed
+          << std::setprecision(2) << base << "," << (base + 2.5) << "," << (base - 1.5) << ","
+          << (base + 0.75) << "," << (1000000 + i * 100) << ","
           << "AAPL\n";
     }
 
@@ -56,7 +52,7 @@ void generate_benchmark_data() {
               << " MB of data\n\n";
 }
 
-template<typename Func>
+template <typename Func>
 double benchmark(Func&& func, int runs = BENCH_RUNS) {
     // Warmup
     for (int i = 0; i < WARMUP_RUNS; ++i) {
@@ -121,8 +117,7 @@ BenchResult bench_blazecsv_parallel() {
             double val = fields[4].value_or(0.0);
             // Relaxed atomic for aggregation
             double current = sum.load(std::memory_order_relaxed);
-            while (!sum.compare_exchange_weak(current, current + val,
-                   std::memory_order_relaxed)) {}
+            while (!sum.compare_exchange_weak(current, current + val, std::memory_order_relaxed)) {}
             rows.fetch_add(1, std::memory_order_relaxed);
         });
     });
@@ -153,9 +148,9 @@ BenchResult bench_csv2() {
     double sum = 0;
 
     double time_ms = benchmark([&]() {
-        csv2::Reader<csv2::delimiter<','>,
-                     csv2::quote_character<'"'>,
-                     csv2::first_row_is_header<true>> reader;
+        csv2::Reader<csv2::delimiter<','>, csv2::quote_character<'"'>,
+                     csv2::first_row_is_header<true>>
+            reader;
         if (reader.mmap(BENCHMARK_FILE)) {
             rows = 0;
             sum = 0;
@@ -199,8 +194,8 @@ BenchResult bench_fast_csv() {
 
     double time_ms = benchmark([&]() {
         io::CSVReader<7> reader(BENCHMARK_FILE);
-        reader.read_header(io::ignore_extra_column,
-            "Date", "Open", "High", "Low", "Close", "Volume", "Symbol");
+        reader.read_header(io::ignore_extra_column, "Date", "Open", "High", "Low", "Close",
+                           "Volume", "Symbol");
 
         std::string date, symbol;
         double open, high, low, close;
@@ -221,23 +216,21 @@ void print_results(const std::vector<BenchResult>& results) {
     // Find fastest for relative comparison
     double fastest = results[0].rate;
     for (const auto& r : results) {
-        if (r.rate > fastest) fastest = r.rate;
+        if (r.rate > fastest)
+            fastest = r.rate;
     }
 
     std::cout << "\n";
-    std::cout << std::left << std::setw(40) << "Library"
-              << std::right << std::setw(12) << "Time (ms)"
-              << std::setw(15) << "Rows/sec"
-              << std::setw(12) << "Relative"
+    std::cout << std::left << std::setw(40) << "Library" << std::right << std::setw(12)
+              << "Time (ms)" << std::setw(15) << "Rows/sec" << std::setw(12) << "Relative"
               << "\n";
     std::cout << std::string(79, '-') << "\n";
 
     for (const auto& r : results) {
-        std::cout << std::left << std::setw(40) << r.name
-                  << std::right << std::setw(12) << std::fixed << std::setprecision(1) << r.time_ms
-                  << std::setw(15) << std::setprecision(0) << r.rate
-                  << std::setw(11) << std::setprecision(2) << (r.rate / fastest)
-                  << "x\n";
+        std::cout << std::left << std::setw(40) << r.name << std::right << std::setw(12)
+                  << std::fixed << std::setprecision(1) << r.time_ms << std::setw(15)
+                  << std::setprecision(0) << r.rate << std::setw(11) << std::setprecision(2)
+                  << (r.rate / fastest) << "x\n";
     }
 }
 

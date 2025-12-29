@@ -47,25 +47,25 @@
 #endif
 
 // Standard library
-#include <string_view>
-#include <string>
+#include <array>
+#include <atomic>
+#include <charconv>
+#include <chrono>
 #include <cstdint>
 #include <cstring>
-#include <charconv>
-#include <type_traits>
-#include <array>
-#include <optional>
 #include <expected>
-#include <chrono>
+#include <optional>
+#include <string>
+#include <string_view>
 #include <thread>
-#include <atomic>
+#include <type_traits>
 #include <vector>
 
 // System headers for mmap (Unix)
 #if !defined(_WIN32)
+#include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
-#include <fcntl.h>
 #include <unistd.h>
 #endif
 
@@ -124,13 +124,8 @@ struct ErrorCheckFull {
 // =============================================================================
 
 /// Compile-time null configuration
-template<
-    bool EmptyIsNull = true,
-    bool NAIsNull = true,
-    bool NullIsNull = true,
-    bool NoneIsNull = false,
-    bool DashIsNull = false
->
+template <bool EmptyIsNull = true, bool NAIsNull = true, bool NullIsNull = true,
+          bool NoneIsNull = false, bool DashIsNull = false>
 struct NullPolicy {
     static constexpr bool empty_is_null = EmptyIsNull;
     static constexpr bool na_is_null = NAIsNull;
@@ -142,34 +137,44 @@ struct NullPolicy {
         const size_t len = end - begin;
 
         if constexpr (empty_is_null) {
-            if (len == 0) return true;
+            if (len == 0)
+                return true;
         }
 
         if constexpr (null_is_null) {
             if (len == 4) {
-                if (std::memcmp(begin, "null", 4) == 0) return true;
-                if (std::memcmp(begin, "NULL", 4) == 0) return true;
+                if (std::memcmp(begin, "null", 4) == 0)
+                    return true;
+                if (std::memcmp(begin, "NULL", 4) == 0)
+                    return true;
             }
         }
 
         if constexpr (none_is_null) {
             if (len == 4) {
-                if (std::memcmp(begin, "None", 4) == 0) return true;
-                if (std::memcmp(begin, "none", 4) == 0) return true;
-                if (std::memcmp(begin, "NONE", 4) == 0) return true;
+                if (std::memcmp(begin, "None", 4) == 0)
+                    return true;
+                if (std::memcmp(begin, "none", 4) == 0)
+                    return true;
+                if (std::memcmp(begin, "NONE", 4) == 0)
+                    return true;
             }
         }
 
         if constexpr (na_is_null) {
-            if (len == 2 && std::memcmp(begin, "NA", 2) == 0) return true;
+            if (len == 2 && std::memcmp(begin, "NA", 2) == 0)
+                return true;
             if (len == 3) {
-                if (std::memcmp(begin, "N/A", 3) == 0) return true;
-                if (std::memcmp(begin, "n/a", 3) == 0) return true;
+                if (std::memcmp(begin, "N/A", 3) == 0)
+                    return true;
+                if (std::memcmp(begin, "n/a", 3) == 0)
+                    return true;
             }
         }
 
         if constexpr (dash_is_null) {
-            if (len == 1 && *begin == '-') return true;
+            if (len == 1 && *begin == '-')
+                return true;
         }
 
         return false;
@@ -177,10 +182,10 @@ struct NullPolicy {
 };
 
 // Common null policy presets
-using NullStrict = NullPolicy<true, false, false, false, false>;   // Only empty
-using NullStandard = NullPolicy<true, true, true, false, false>;   // Empty, NA, null
-using NullLenient = NullPolicy<true, true, true, true, true>;      // Everything
-using NoNullCheck = NullPolicy<false, false, false, false, false>; // Disabled
+using NullStrict = NullPolicy<true, false, false, false, false>;    // Only empty
+using NullStandard = NullPolicy<true, true, true, false, false>;    // Empty, NA, null
+using NullLenient = NullPolicy<true, true, true, true, true>;       // Everything
+using NoNullCheck = NullPolicy<false, false, false, false, false>;  // Disabled
 
 // =============================================================================
 // SIMD UTILITIES
@@ -223,7 +228,8 @@ namespace detail {
         // Handle remainder
         for (; i < len; ++i) {
             char c = data[i];
-            if (c == delim || c == '\n' || c == '\r') return i;
+            if (c == delim || c == '\n' || c == '\r')
+                return i;
         }
         return len;
     }
@@ -237,8 +243,7 @@ namespace detail {
         for (; i + 16 <= len; i += 16) {
             __m128i chunk = _mm_loadu_si128(reinterpret_cast<const __m128i*>(data + i));
             __m128i cmp = _mm_or_si128(
-                _mm_or_si128(_mm_cmpeq_epi8(chunk, delim_vec),
-                             _mm_cmpeq_epi8(chunk, newline_vec)),
+                _mm_or_si128(_mm_cmpeq_epi8(chunk, delim_vec), _mm_cmpeq_epi8(chunk, newline_vec)),
                 _mm_cmpeq_epi8(chunk, cr_vec));
             int mask = _mm_movemask_epi8(cmp);
             if (mask) {
@@ -248,7 +253,8 @@ namespace detail {
 
         for (; i < len; ++i) {
             char c = data[i];
-            if (c == delim || c == '\n' || c == '\r') return i;
+            if (c == delim || c == '\n' || c == '\r')
+                return i;
         }
         return len;
     }
@@ -256,7 +262,8 @@ namespace detail {
     // Scalar fallback
     for (size_t i = 0; i < len; ++i) {
         char c = data[i];
-        if (c == delim || c == '\n' || c == '\r') return i;
+        if (c == delim || c == '\n' || c == '\r')
+            return i;
     }
     return len;
 }
@@ -275,13 +282,15 @@ namespace detail {
             uint64x2_t cmp64 = vreinterpretq_u64_u8(cmp);
             if (vgetq_lane_u64(cmp64, 0) | vgetq_lane_u64(cmp64, 1)) {
                 for (size_t j = 0; j < 16; ++j) {
-                    if (data[i + j] == '\n') return i + j;
+                    if (data[i + j] == '\n')
+                        return i + j;
                 }
             }
         }
 
         for (; i < len; ++i) {
-            if (data[i] == '\n') return i;
+            if (data[i] == '\n')
+                return i;
         }
         return len;
     }
@@ -299,18 +308,20 @@ namespace detail {
         }
 
         for (; i < len; ++i) {
-            if (data[i] == '\n') return i;
+            if (data[i] == '\n')
+                return i;
         }
         return len;
     }
 #endif
     for (size_t i = 0; i < len; ++i) {
-        if (data[i] == '\n') return i;
+        if (data[i] == '\n')
+            return i;
     }
     return len;
 }
 
-} // namespace detail
+}  // namespace detail
 
 // =============================================================================
 // MMAP FILE SOURCE
@@ -327,16 +338,21 @@ public:
     explicit MmapSource(const std::string& path) {
 #if !defined(_WIN32)
         fd_ = ::open(path.c_str(), O_RDONLY);
-        if (fd_ < 0) return;
+        if (fd_ < 0)
+            return;
 
         struct stat st;
-        if (::fstat(fd_, &st) < 0) { ::close(fd_); fd_ = -1; return; }
+        if (::fstat(fd_, &st) < 0) {
+            ::close(fd_);
+            fd_ = -1;
+            return;
+        }
 
         size_ = static_cast<size_t>(st.st_size);
 
         if (size_ > 0) {
-            data_ = static_cast<const char*>(
-                ::mmap(nullptr, size_, PROT_READ, MAP_PRIVATE, fd_, 0));
+            data_ =
+                static_cast<const char*>(::mmap(nullptr, size_, PROT_READ, MAP_PRIVATE, fd_, 0));
 
             if (data_ == MAP_FAILED) {
                 ::close(fd_);
@@ -351,23 +367,33 @@ public:
 
     ~MmapSource() {
 #if !defined(_WIN32)
-        if (data_ && data_ != MAP_FAILED) ::munmap(const_cast<char*>(data_), size_);
-        if (fd_ >= 0) ::close(fd_);
+        if (data_ && data_ != MAP_FAILED)
+            ::munmap(const_cast<char*>(data_), size_);
+        if (fd_ >= 0)
+            ::close(fd_);
 #endif
     }
 
     MmapSource(MmapSource&& o) noexcept : data_(o.data_), size_(o.size_), fd_(o.fd_) {
-        o.data_ = nullptr; o.size_ = 0; o.fd_ = -1;
+        o.data_ = nullptr;
+        o.size_ = 0;
+        o.fd_ = -1;
     }
 
     MmapSource& operator=(MmapSource&& o) noexcept {
         if (this != &o) {
 #if !defined(_WIN32)
-            if (data_ && data_ != MAP_FAILED) ::munmap(const_cast<char*>(data_), size_);
-            if (fd_ >= 0) ::close(fd_);
+            if (data_ && data_ != MAP_FAILED)
+                ::munmap(const_cast<char*>(data_), size_);
+            if (fd_ >= 0)
+                ::close(fd_);
 #endif
-            data_ = o.data_; size_ = o.size_; fd_ = o.fd_;
-            o.data_ = nullptr; o.size_ = 0; o.fd_ = -1;
+            data_ = o.data_;
+            size_ = o.size_;
+            fd_ = o.fd_;
+            o.data_ = nullptr;
+            o.size_ = 0;
+            o.fd_ = -1;
         }
         return *this;
     }
@@ -390,8 +416,7 @@ class FieldRef {
 
 public:
     constexpr FieldRef() noexcept : begin_(nullptr), end_(nullptr) {}
-    constexpr FieldRef(const char* begin, const char* end) noexcept
-        : begin_(begin), end_(end) {}
+    constexpr FieldRef(const char* begin, const char* end) noexcept : begin_(begin), end_(end) {}
 
     // --- Basic accessors (always inline) ---
     [[nodiscard]] constexpr std::string_view view() const noexcept {
@@ -403,7 +428,7 @@ public:
     [[nodiscard]] constexpr bool empty() const noexcept { return begin_ == end_; }
 
     // --- Null check with policy ---
-    template<typename NullPol = NullStandard>
+    template <typename NullPol = NullStandard>
     [[nodiscard]] constexpr bool is_null() const noexcept {
         return NullPol::check(begin_, end_);
     }
@@ -413,21 +438,21 @@ public:
     // ==========================================================================
 
     // --- Integer parsing (fastest path) ---
-    template<typename T>
-    requires std::is_integral_v<T> && (!std::is_same_v<T, bool>)
+    template <typename T>
+        requires std::is_integral_v<T> && (!std::is_same_v<T, bool>)
     [[nodiscard]] std::expected<T, ErrorCode> parse() const noexcept {
         T value{};
         auto [ptr, ec] = std::from_chars(begin_, end_, value);
         if (ec == std::errc{} && ptr == end_) {
             return value;
         }
-        return std::unexpected(ec == std::errc::result_out_of_range
-            ? ErrorCode::OutOfRange : ErrorCode::InvalidInteger);
+        return std::unexpected(ec == std::errc::result_out_of_range ? ErrorCode::OutOfRange
+                                                                    : ErrorCode::InvalidInteger);
     }
 
     // --- Floating point parsing ---
-    template<typename T>
-    requires std::is_floating_point_v<T>
+    template <typename T>
+        requires std::is_floating_point_v<T>
     [[nodiscard]] std::expected<T, ErrorCode> parse() const noexcept {
         T value{};
         if (parse_double_fast(value)) {
@@ -447,60 +472,65 @@ public:
     }
 
     // --- Boolean parsing ---
-    template<typename T>
-    requires std::is_same_v<T, bool>
+    template <typename T>
+        requires std::is_same_v<T, bool>
     [[nodiscard]] std::expected<T, ErrorCode> parse() const noexcept {
         const size_t len = size();
-        if (len == 0) return std::unexpected(ErrorCode::InvalidBool);
+        if (len == 0)
+            return std::unexpected(ErrorCode::InvalidBool);
 
         // Single character: 1/0, t/f, y/n
         if (len == 1) {
             char c = *begin_;
-            if (c == '1' || c == 't' || c == 'T' || c == 'y' || c == 'Y') return true;
-            if (c == '0' || c == 'f' || c == 'F' || c == 'n' || c == 'N') return false;
+            if (c == '1' || c == 't' || c == 'T' || c == 'y' || c == 'Y')
+                return true;
+            if (c == '0' || c == 'f' || c == 'F' || c == 'n' || c == 'N')
+                return false;
         }
 
         // Full words
         if (len == 4) {
-            if (std::memcmp(begin_, "true", 4) == 0 ||
-                std::memcmp(begin_, "True", 4) == 0 ||
-                std::memcmp(begin_, "TRUE", 4) == 0) return true;
+            if (std::memcmp(begin_, "true", 4) == 0 || std::memcmp(begin_, "True", 4) == 0 ||
+                std::memcmp(begin_, "TRUE", 4) == 0)
+                return true;
         }
         if (len == 5) {
-            if (std::memcmp(begin_, "false", 5) == 0 ||
-                std::memcmp(begin_, "False", 5) == 0 ||
-                std::memcmp(begin_, "FALSE", 5) == 0) return false;
+            if (std::memcmp(begin_, "false", 5) == 0 || std::memcmp(begin_, "False", 5) == 0 ||
+                std::memcmp(begin_, "FALSE", 5) == 0)
+                return false;
         }
         if (len == 3) {
-            if (std::memcmp(begin_, "yes", 3) == 0 ||
-                std::memcmp(begin_, "Yes", 3) == 0 ||
-                std::memcmp(begin_, "YES", 3) == 0) return true;
+            if (std::memcmp(begin_, "yes", 3) == 0 || std::memcmp(begin_, "Yes", 3) == 0 ||
+                std::memcmp(begin_, "YES", 3) == 0)
+                return true;
         }
         if (len == 2) {
-            if (std::memcmp(begin_, "no", 2) == 0 ||
-                std::memcmp(begin_, "No", 2) == 0 ||
-                std::memcmp(begin_, "NO", 2) == 0) return false;
+            if (std::memcmp(begin_, "no", 2) == 0 || std::memcmp(begin_, "No", 2) == 0 ||
+                std::memcmp(begin_, "NO", 2) == 0)
+                return false;
         }
 
         return std::unexpected(ErrorCode::InvalidBool);
     }
 
     // --- String (always succeeds) ---
-    template<typename T>
-    requires std::is_same_v<T, std::string_view>
+    template <typename T>
+        requires std::is_same_v<T, std::string_view>
     [[nodiscard]] std::expected<T, ErrorCode> parse() const noexcept {
         return view();
     }
 
-    template<typename T>
-    requires std::is_same_v<T, std::string>
+    template <typename T>
+        requires std::is_same_v<T, std::string>
     [[nodiscard]] std::expected<T, ErrorCode> parse() const noexcept {
         return std::string(begin_, end_);
     }
 
     // --- Date parsing (YYYY-MM-DD) ---
-    [[nodiscard]] std::expected<std::chrono::year_month_day, ErrorCode> parse_date() const noexcept {
-        if (size() < 10) return std::unexpected(ErrorCode::InvalidDate);
+    [[nodiscard]] std::expected<std::chrono::year_month_day, ErrorCode> parse_date()
+        const noexcept {
+        if (size() < 10)
+            return std::unexpected(ErrorCode::InvalidDate);
 
         int year, month, day;
         auto [p1, e1] = std::from_chars(begin_, begin_ + 4, year);
@@ -515,21 +545,23 @@ public:
         if (e3 != std::errc{})
             return std::unexpected(ErrorCode::InvalidDate);
 
-        auto ymd = std::chrono::year{year} /
-                   std::chrono::month{static_cast<unsigned>(month)} /
+        auto ymd = std::chrono::year{year} / std::chrono::month{static_cast<unsigned>(month)} /
                    std::chrono::day{static_cast<unsigned>(day)};
 
-        if (!ymd.ok()) return std::unexpected(ErrorCode::InvalidDate);
+        if (!ymd.ok())
+            return std::unexpected(ErrorCode::InvalidDate);
         return ymd;
     }
 
     // --- DateTime parsing (YYYY-MM-DD HH:MM:SS or YYYY-MM-DDTHH:MM:SS) ---
-    [[nodiscard]] std::expected<std::chrono::system_clock::time_point, ErrorCode>
-    parse_datetime() const noexcept {
-        if (size() < 19) return std::unexpected(ErrorCode::InvalidDateTime);
+    [[nodiscard]] std::expected<std::chrono::system_clock::time_point, ErrorCode> parse_datetime()
+        const noexcept {
+        if (size() < 19)
+            return std::unexpected(ErrorCode::InvalidDateTime);
 
         auto date_result = parse_date();
-        if (!date_result) return std::unexpected(date_result.error());
+        if (!date_result)
+            return std::unexpected(date_result.error());
 
         char sep = *(begin_ + 10);
         if (sep != ' ' && sep != 'T')
@@ -551,10 +583,8 @@ public:
         if (hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 60)
             return std::unexpected(ErrorCode::InvalidDateTime);
 
-        auto tp = std::chrono::sys_days{*date_result} +
-                  std::chrono::hours{hour} +
-                  std::chrono::minutes{minute} +
-                  std::chrono::seconds{second};
+        auto tp = std::chrono::sys_days{*date_result} + std::chrono::hours{hour} +
+                  std::chrono::minutes{minute} + std::chrono::seconds{second};
 
         return std::chrono::time_point_cast<std::chrono::system_clock::duration>(tp);
     }
@@ -564,39 +594,46 @@ public:
     // ==========================================================================
 
     /// Parse with default value on failure
-    template<typename T>
+    template <typename T>
     [[nodiscard]] T value_or(T default_value) const noexcept {
         auto result = parse<T>();
         return result ? *result : default_value;
     }
 
     /// Parse as optional (null-aware)
-    template<typename T, typename NullPol = NullStandard>
+    template <typename T, typename NullPol = NullStandard>
     [[nodiscard]] std::optional<T> as_optional() const noexcept {
-        if (is_null<NullPol>()) return std::nullopt;
+        if (is_null<NullPol>())
+            return std::nullopt;
         auto result = parse<T>();
         return result ? std::optional<T>{*result} : std::nullopt;
     }
 
     /// Direct access for v1-compatible fast parsing
-    template<typename T>
+    template <typename T>
     [[nodiscard]] T as() const {
         auto result = parse<T>();
         return result.value_or(T{});
     }
 
 private:
-    template<typename T>
+    template <typename T>
     bool parse_double_fast(T& x) const noexcept {
         static_assert(std::is_floating_point_v<T>);
         const char* p = begin_;
-        if (p >= end_) return false;
+        if (p >= end_)
+            return false;
 
         bool negative = false;
-        if (*p == '-') { negative = true; ++p; }
-        else if (*p == '+') { ++p; }
+        if (*p == '-') {
+            negative = true;
+            ++p;
+        } else if (*p == '+') {
+            ++p;
+        }
 
-        if (p >= end_) return false;
+        if (p >= end_)
+            return false;
 
         uint64_t int_part = 0;
         while (p < end_ && *p >= '0' && *p <= '9') {
@@ -618,7 +655,8 @@ private:
             x += frac;
         }
 
-        if (negative) x = -x;
+        if (negative)
+            x = -x;
         return p == end_;
     }
 };
@@ -627,12 +665,8 @@ private:
 // CSV READER - SIMD-ACCELERATED (Main Interface)
 // =============================================================================
 
-template<
-    size_t Columns,
-    char Delim = ',',
-    typename ErrorPolicy = NoErrorCheck,
-    typename NullPol = NullStandard
->
+template <size_t Columns, char Delim = ',', typename ErrorPolicy = NoErrorCheck,
+          typename NullPol = NullStandard>
 class alignas(64) Reader {  // Cache-line aligned
     MmapSource source_;
     const char* current_;
@@ -651,14 +685,12 @@ class alignas(64) Reader {  // Cache-line aligned
 
     // Error tracking (only if enabled - zero bytes otherwise via [[no_unique_address]])
     [[no_unique_address]] std::conditional_t<ErrorPolicy::enabled, ErrorInfo, Empty> last_error_{};
-    [[no_unique_address]] std::conditional_t<ErrorPolicy::track_line, uint32_t, Empty> line_number_{};
+    [[no_unique_address]] std::conditional_t<ErrorPolicy::track_line, uint32_t, Empty>
+        line_number_{};
 
 public:
     explicit Reader(const std::string& filepath, bool skip_header = true)
-        : source_(filepath)
-        , current_(source_.data())
-        , end_(current_ + source_.size())
-    {
+        : source_(filepath), current_(source_.data()), end_(current_ + source_.size()) {
         if (skip_header && source_.valid()) {
             parse_header();
         }
@@ -671,7 +703,8 @@ public:
 
     [[nodiscard]] std::optional<size_t> column_index(std::string_view name) const noexcept {
         for (size_t i = 0; i < Columns; ++i) {
-            if (column_names_[i] == name) return i;
+            if (column_names_[i] == name)
+                return i;
         }
         return std::nullopt;
     }
@@ -682,12 +715,14 @@ public:
 
     // --- Error access (only meaningful if ErrorPolicy::enabled) ---
     [[nodiscard]] ErrorInfo last_error() const noexcept {
-        if constexpr (ErrorPolicy::enabled) return last_error_;
+        if constexpr (ErrorPolicy::enabled)
+            return last_error_;
         return ErrorInfo{};
     }
 
     [[nodiscard]] bool has_error() const noexcept {
-        if constexpr (ErrorPolicy::enabled) return !last_error_.ok();
+        if constexpr (ErrorPolicy::enabled)
+            return !last_error_.ok();
         return false;
     }
 
@@ -697,7 +732,7 @@ public:
 
     /// Maximum performance - raw pointers with SIMD
     /// Callback: void(const char** starts, const char** ends)
-    template<typename Callback>
+    template <typename Callback>
     [[gnu::hot]] size_t for_each_raw(Callback&& callback) {
         size_t count = 0;
         std::array<const char*, Columns> starts;
@@ -715,10 +750,14 @@ public:
             }
 
             // Skip empty lines
-            if (*current_ == '\n') { ++current_; continue; }
+            if (*current_ == '\n') {
+                ++current_;
+                continue;
+            }
             if (*current_ == '\r') {
                 ++current_;
-                if (current_ < end_ && *current_ == '\n') ++current_;
+                if (current_ < end_ && *current_ == '\n')
+                    ++current_;
                 continue;
             }
 
@@ -754,9 +793,8 @@ public:
             }
 
             // Handle trailing empty field
-            bool trailing_empty = (col > 0 && col < Columns &&
-                                   ends[col-1] < effective_end &&
-                                   *(ends[col-1]) == Delim);
+            bool trailing_empty = (col > 0 && col < Columns && ends[col - 1] < effective_end &&
+                                   *(ends[col - 1]) == Delim);
             if (trailing_empty) {
                 starts[col] = ptr;
                 ends[col] = ptr;
@@ -769,11 +807,9 @@ public:
             // Validate column count
             if constexpr (ErrorPolicy::enabled) {
                 if (col != Columns) {
-                    last_error_ = ErrorInfo{
-                        ErrorCode::ColumnCountMismatch,
-                        ErrorPolicy::track_line ? line_number_ : 0u,
-                        static_cast<uint8_t>(col)
-                    };
+                    last_error_ = ErrorInfo{ErrorCode::ColumnCountMismatch,
+                                            ErrorPolicy::track_line ? line_number_ : 0u,
+                                            static_cast<uint8_t>(col)};
                     continue;
                 }
             }
@@ -787,13 +823,13 @@ public:
 
     /// FieldRef-based iteration with SIMD parsing
     /// Callback: void(const std::array<FieldRef, Columns>&)
-    template<typename Callback>
+    template <typename Callback>
     [[gnu::hot]] size_t for_each(Callback&& callback) {
         return for_each_raw([&callback](const char** starts, const char** ends) {
             std::array<FieldRef, Columns> fields;
             // Unrolled for small column counts (compile-time)
             if constexpr (Columns <= 8) {
-                #pragma unroll
+#pragma unroll
                 for (size_t i = 0; i < Columns; ++i) {
                     fields[i] = FieldRef(starts[i], ends[i]);
                 }
@@ -808,7 +844,7 @@ public:
 
     /// Process with early termination support
     /// Callback: bool(const std::array<FieldRef, Columns>&) - return false to stop
-    template<typename Callback>
+    template <typename Callback>
     [[gnu::hot]] size_t for_each_until(Callback&& callback) {
         size_t count = 0;
         std::array<const char*, Columns> starts;
@@ -824,10 +860,14 @@ public:
                 ++line_number_;
             }
 
-            if (*current_ == '\n') { ++current_; continue; }
+            if (*current_ == '\n') {
+                ++current_;
+                continue;
+            }
             if (*current_ == '\r') {
                 ++current_;
-                if (current_ < end_ && *current_ == '\n') ++current_;
+                if (current_ < end_ && *current_ == '\n')
+                    ++current_;
                 continue;
             }
 
@@ -835,7 +875,8 @@ public:
             size_t line_len = detail::find_newline(current_, remaining);
             const char* line_end = current_ + line_len;
             const char* effective_end = line_end;
-            if (effective_end > current_ && *(effective_end - 1) == '\r') --effective_end;
+            if (effective_end > current_ && *(effective_end - 1) == '\r')
+                --effective_end;
 
             const char* ptr = current_;
             size_t col = 0;
@@ -846,10 +887,12 @@ public:
                 ptr += field_len;
                 ends[col] = ptr;
                 ++col;
-                if (ptr < effective_end && *ptr == Delim) ++ptr;
+                if (ptr < effective_end && *ptr == Delim)
+                    ++ptr;
             }
 
-            if (col > 0 && col < Columns && ends[col-1] < effective_end && *(ends[col-1]) == Delim) {
+            if (col > 0 && col < Columns && ends[col - 1] < effective_end &&
+                *(ends[col - 1]) == Delim) {
                 starts[col] = ptr;
                 ends[col] = ptr;
                 ++col;
@@ -858,7 +901,8 @@ public:
             current_ = (line_end < end_) ? line_end + 1 : end_;
 
             if constexpr (ErrorPolicy::enabled) {
-                if (col != Columns) continue;
+                if (col != Columns)
+                    continue;
             }
 
             std::array<FieldRef, Columns> fields;
@@ -867,7 +911,8 @@ public:
             }
 
             ++count;
-            if (!callback(fields)) break;  // Early termination
+            if (!callback(fields))
+                break;  // Early termination
         }
 
         return count;
@@ -875,7 +920,8 @@ public:
 
 private:
     void parse_header() {
-        if (current_ >= end_) return;
+        if (current_ >= end_)
+            return;
 
         if constexpr (ErrorPolicy::track_line) {
             ++line_number_;
@@ -885,7 +931,8 @@ private:
         size_t line_len = detail::find_newline(current_, end_ - current_);
         const char* line_end = current_ + line_len;
         const char* effective_end = line_end;
-        if (effective_end > current_ && *(effective_end - 1) == '\r') --effective_end;
+        if (effective_end > current_ && *(effective_end - 1) == '\r')
+            --effective_end;
 
         // Parse header fields
         const char* ptr = current_;
@@ -897,7 +944,8 @@ private:
             ptr += field_len;
             column_names_[col] = std::string_view(start, ptr - start);
             ++col;
-            if (ptr < effective_end && *ptr == Delim) ++ptr;
+            if (ptr < effective_end && *ptr == Delim)
+                ++ptr;
         }
 
         current_ = (line_end < end_) ? line_end + 1 : end_;
@@ -909,11 +957,7 @@ private:
 // PARALLEL READER - Multi-threaded SIMD processing
 // =============================================================================
 
-template<
-    size_t Columns,
-    char Delim = ',',
-    typename NullPol = NullStandard
->
+template <size_t Columns, char Delim = ',', typename NullPol = NullStandard>
 class ParallelReader {
     MmapSource source_;
     const char* data_;
@@ -923,14 +967,12 @@ class ParallelReader {
     std::array<std::string_view, Columns> column_names_;
 
 public:
-    explicit ParallelReader(const std::string& filepath,
-                            size_t num_threads = 4,
+    explicit ParallelReader(const std::string& filepath, size_t num_threads = 4,
                             bool skip_header = true)
-        : source_(filepath)
-        , data_(source_.data())
-        , size_(source_.size())
-        , num_threads_(num_threads)
-    {
+        : source_(filepath),
+          data_(source_.data()),
+          size_(source_.size()),
+          num_threads_(num_threads) {
         if (skip_header && source_.valid()) {
             // Skip header and capture names
             size_t nl = detail::find_newline(data_, size_);
@@ -942,7 +984,8 @@ public:
                 size_t field_len = detail::find_field_end(ptr, line_end - ptr, Delim);
                 ptr += field_len;
                 column_names_[col++] = std::string_view(start, ptr - start);
-                if (ptr < line_end && *ptr == Delim) ++ptr;
+                if (ptr < line_end && *ptr == Delim)
+                    ++ptr;
             }
             data_ = (line_end < data_ + size_) ? line_end + 1 : data_ + size_;
             size_ = (source_.data() + source_.size()) - data_;
@@ -955,9 +998,10 @@ public:
 
     /// Parallel iteration with SIMD
     /// Note: Callback may be invoked from multiple threads!
-    template<typename Callback>
+    template <typename Callback>
     size_t for_each_parallel(Callback&& callback) {
-        if (size_ == 0) return 0;
+        if (size_ == 0)
+            return 0;
 
         // Find chunk boundaries (must be at newlines)
         std::vector<std::pair<const char*, const char*>> chunks;
@@ -975,7 +1019,8 @@ public:
                 size_t remaining = (data_ + size_) - approx_end;
                 size_t nl = detail::find_newline(approx_end, remaining);
                 approx_end += nl;
-                if (approx_end < data_ + size_) ++approx_end;  // Skip the newline
+                if (approx_end < data_ + size_)
+                    ++approx_end;  // Skip the newline
             }
 
             chunks.emplace_back(chunk_start, approx_end);
@@ -1009,7 +1054,7 @@ public:
     }
 
 private:
-    template<typename Callback>
+    template <typename Callback>
     static size_t parse_chunk(const char* start, const char* end, Callback& callback) {
         size_t count = 0;
         const char* current = start;
@@ -1024,17 +1069,22 @@ private:
                 BLAZECSV_PREFETCH(current + 4096, 0, 2);
             }
 
-            if (*current == '\n') { ++current; continue; }
+            if (*current == '\n') {
+                ++current;
+                continue;
+            }
             if (*current == '\r') {
                 ++current;
-                if (current < end && *current == '\n') ++current;
+                if (current < end && *current == '\n')
+                    ++current;
                 continue;
             }
 
             size_t line_len = detail::find_newline(current, end - current);
             const char* line_end = current + line_len;
             const char* effective_end = line_end;
-            if (effective_end > current && *(effective_end - 1) == '\r') --effective_end;
+            if (effective_end > current && *(effective_end - 1) == '\r')
+                --effective_end;
 
             const char* ptr = current;
             size_t col = 0;
@@ -1045,10 +1095,12 @@ private:
                 ptr += field_len;
                 ends[col] = ptr;
                 ++col;
-                if (ptr < effective_end && *ptr == Delim) ++ptr;
+                if (ptr < effective_end && *ptr == Delim)
+                    ++ptr;
             }
 
-            if (col > 0 && col < Columns && ends[col-1] < effective_end && *(ends[col-1]) == Delim) {
+            if (col > 0 && col < Columns && ends[col - 1] < effective_end &&
+                *(ends[col - 1]) == Delim) {
                 starts[col] = ptr;
                 ends[col] = ptr;
                 ++col;
@@ -1075,34 +1127,34 @@ private:
 // =============================================================================
 
 /// Maximum performance - no error checking, no null detection
-template<size_t N, char D = ','>
+template <size_t N, char D = ','>
 using TurboReader = Reader<N, D, NoErrorCheck, NoNullCheck>;
 
 /// Balanced - basic error tracking with standard null detection
-template<size_t N, char D = ','>
+template <size_t N, char D = ','>
 using CheckedReader = Reader<N, D, ErrorCheckBasic, NullStandard>;
 
 /// Full featured - complete error tracking with lenient null support
-template<size_t N, char D = ','>
+template <size_t N, char D = ','>
 using SafeReader = Reader<N, D, ErrorCheckFull, NullLenient>;
 
 /// TSV variants (tab-separated)
-template<size_t N>
+template <size_t N>
 using TsvReader = TurboReader<N, '\t'>;
 
-template<size_t N>
+template <size_t N>
 using TsvTurboReader = TurboReader<N, '\t'>;
 
-template<size_t N>
+template <size_t N>
 using TsvCheckedReader = CheckedReader<N, '\t'>;
 
-template<size_t N>
+template <size_t N>
 using CheckedTsvReader = CheckedReader<N, '\t'>;
 
-template<size_t N>
+template <size_t N>
 using TsvSafeReader = SafeReader<N, '\t'>;
 
-template<size_t N>
+template <size_t N>
 using SafeTsvReader = SafeReader<N, '\t'>;
 
 // =============================================================================
@@ -1110,23 +1162,23 @@ using SafeTsvReader = SafeReader<N, '\t'>;
 // =============================================================================
 
 /// Create a TurboReader for a file
-template<size_t Columns, char Delimiter = ','>
+template <size_t Columns, char Delimiter = ','>
 auto make_reader(const std::string& filepath) {
     return TurboReader<Columns, Delimiter>(filepath);
 }
 
 /// Create a SafeReader for a file
-template<size_t Columns, char Delimiter = ','>
+template <size_t Columns, char Delimiter = ','>
 auto make_safe_reader(const std::string& filepath) {
     return SafeReader<Columns, Delimiter>(filepath);
 }
 
 /// Create a ParallelReader for a file
-template<size_t Columns, char Delimiter = ','>
+template <size_t Columns, char Delimiter = ','>
 auto make_parallel_reader(const std::string& filepath, size_t num_threads = 4) {
     return ParallelReader<Columns, Delimiter>(filepath, num_threads);
 }
 
-} // namespace blazecsv
+}  // namespace blazecsv
 
-#endif // BLAZECSV_HPP
+#endif  // BLAZECSV_HPP

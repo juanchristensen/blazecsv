@@ -4,15 +4,20 @@
 // quoted strings, parallel reader, and more.
 
 #include <blazecsv/blazecsv.hpp>
-#include <iostream>
-#include <fstream>
-#include <cmath>
-#include <atomic>
-#include <thread>
-#include <set>
 
-#define TEST(name) std::cout << "  " << name << "... "; tests_run++
-#define PASS() std::cout << "PASS\n"; tests_passed++
+#include <atomic>
+#include <cmath>
+#include <fstream>
+#include <iostream>
+#include <set>
+#include <thread>
+
+#define TEST(name)                       \
+    std::cout << "  " << name << "... "; \
+    tests_run++
+#define PASS()             \
+    std::cout << "PASS\n"; \
+    tests_passed++
 #define FAIL(msg) std::cout << "FAIL: " << msg << "\n"
 
 static int tests_run = 0;
@@ -29,25 +34,22 @@ void test_date_parsing() {
     {
         std::ofstream f(filename);
         f << "date\n";
-        f << "2024-01-15\n";      // Valid date
-        f << "2024-12-31\n";      // End of year
-        f << "2024-02-29\n";      // Leap year
-        f << "2023-02-28\n";      // Non-leap year Feb
-        f << "1999-06-15\n";      // Past date
-        f << "2099-01-01\n";      // Future date
+        f << "2024-01-15\n";  // Valid date
+        f << "2024-12-31\n";  // End of year
+        f << "2024-02-29\n";  // Leap year
+        f << "2023-02-28\n";  // Non-leap year Feb
+        f << "1999-06-15\n";  // Past date
+        f << "2099-01-01\n";  // Future date
     }
 
     blazecsv::SafeReader<1> reader(filename);
     std::vector<std::expected<std::chrono::year_month_day, blazecsv::ErrorCode>> results;
 
-    reader.for_each([&results](const auto& fields) {
-        results.push_back(fields[0].parse_date());
-    });
+    reader.for_each([&results](const auto& fields) { results.push_back(fields[0].parse_date()); });
 
     TEST("valid date 2024-01-15");
     if (results[0] && results[0]->year() == std::chrono::year{2024} &&
-        results[0]->month() == std::chrono::January &&
-        results[0]->day() == std::chrono::day{15}) {
+        results[0]->month() == std::chrono::January && results[0]->day() == std::chrono::day{15}) {
         PASS();
     } else {
         FAIL("date mismatch");
@@ -86,14 +88,14 @@ void test_date_parsing_errors() {
     {
         std::ofstream f(filename);
         f << "date\n";
-        f << "2023-02-29\n";      // Invalid: non-leap year Feb 29
-        f << "2024-13-01\n";      // Invalid: month 13
-        f << "2024-00-15\n";      // Invalid: month 0
-        f << "2024-01-32\n";      // Invalid: day 32
-        f << "2024/01/15\n";      // Invalid format (slashes)
-        f << "01-15-2024\n";      // Invalid format (US style)
-        f << "not-a-date\n";      // Invalid: text
-        f << "\n";                // Invalid: empty
+        f << "2023-02-29\n";  // Invalid: non-leap year Feb 29
+        f << "2024-13-01\n";  // Invalid: month 13
+        f << "2024-00-15\n";  // Invalid: month 0
+        f << "2024-01-32\n";  // Invalid: day 32
+        f << "2024/01/15\n";  // Invalid format (slashes)
+        f << "01-15-2024\n";  // Invalid format (US style)
+        f << "not-a-date\n";  // Invalid: text
+        f << "\n";            // Invalid: empty
     }
 
     blazecsv::SafeReader<1> reader(filename);
@@ -105,19 +107,39 @@ void test_date_parsing_errors() {
     });
 
     TEST("non-leap year Feb 29 is error");
-    if (is_error.size() > 0 && is_error[0]) { PASS(); } else { FAIL("should be error"); }
+    if (is_error.size() > 0 && is_error[0]) {
+        PASS();
+    } else {
+        FAIL("should be error");
+    }
 
     TEST("month 13 is error");
-    if (is_error.size() > 1 && is_error[1]) { PASS(); } else { FAIL("should be error"); }
+    if (is_error.size() > 1 && is_error[1]) {
+        PASS();
+    } else {
+        FAIL("should be error");
+    }
 
     TEST("month 0 is error");
-    if (is_error.size() > 2 && is_error[2]) { PASS(); } else { FAIL("should be error"); }
+    if (is_error.size() > 2 && is_error[2]) {
+        PASS();
+    } else {
+        FAIL("should be error");
+    }
 
     TEST("day 32 is error");
-    if (is_error.size() > 3 && is_error[3]) { PASS(); } else { FAIL("should be error"); }
+    if (is_error.size() > 3 && is_error[3]) {
+        PASS();
+    } else {
+        FAIL("should be error");
+    }
 
     TEST("slash format is error");
-    if (is_error.size() > 4 && is_error[4]) { PASS(); } else { FAIL("should be error"); }
+    if (is_error.size() > 4 && is_error[4]) {
+        PASS();
+    } else {
+        FAIL("should be error");
+    }
 
     std::remove(filename.c_str());
 }
@@ -129,10 +151,10 @@ void test_datetime_parsing() {
     {
         std::ofstream f(filename);
         f << "datetime\n";
-        f << "2024-01-15 10:30:45\n";   // Space separator
-        f << "2024-01-15T10:30:45\n";   // ISO T separator
-        f << "2024-12-31 23:59:59\n";   // End of day
-        f << "2024-01-01 00:00:00\n";   // Start of day
+        f << "2024-01-15 10:30:45\n";  // Space separator
+        f << "2024-01-15T10:30:45\n";  // ISO T separator
+        f << "2024-12-31 23:59:59\n";  // End of day
+        f << "2024-01-01 00:00:00\n";  // Start of day
     }
 
     blazecsv::SafeReader<1> reader(filename);
@@ -144,16 +166,32 @@ void test_datetime_parsing() {
     });
 
     TEST("space separator datetime");
-    if (is_valid.size() > 0 && is_valid[0]) { PASS(); } else { FAIL("should be valid"); }
+    if (is_valid.size() > 0 && is_valid[0]) {
+        PASS();
+    } else {
+        FAIL("should be valid");
+    }
 
     TEST("ISO T separator datetime");
-    if (is_valid.size() > 1 && is_valid[1]) { PASS(); } else { FAIL("should be valid"); }
+    if (is_valid.size() > 1 && is_valid[1]) {
+        PASS();
+    } else {
+        FAIL("should be valid");
+    }
 
     TEST("end of day 23:59:59");
-    if (is_valid.size() > 2 && is_valid[2]) { PASS(); } else { FAIL("should be valid"); }
+    if (is_valid.size() > 2 && is_valid[2]) {
+        PASS();
+    } else {
+        FAIL("should be valid");
+    }
 
     TEST("start of day 00:00:00");
-    if (is_valid.size() > 3 && is_valid[3]) { PASS(); } else { FAIL("should be valid"); }
+    if (is_valid.size() > 3 && is_valid[3]) {
+        PASS();
+    } else {
+        FAIL("should be valid");
+    }
 
     std::remove(filename.c_str());
 }
@@ -176,12 +214,14 @@ void test_line_endings() {
 
         blazecsv::TurboReader<2> reader(filename);
         size_t count = 0;
-        reader.for_each([&count](const auto& fields) {
-            count++;
-        });
+        reader.for_each([&count](const auto& fields) { count++; });
 
         std::remove(filename.c_str());
-        if (count == 2) { PASS(); } else { FAIL("expected 2 rows, got " + std::to_string(count)); }
+        if (count == 2) {
+            PASS();
+        } else {
+            FAIL("expected 2 rows, got " + std::to_string(count));
+        }
     }
 
     // Test Unix LF (already covered, but verify)
@@ -198,7 +238,11 @@ void test_line_endings() {
         reader.for_each([&count](const auto&) { count++; });
 
         std::remove(filename.c_str());
-        if (count == 2) { PASS(); } else { FAIL("expected 2 rows"); }
+        if (count == 2) {
+            PASS();
+        } else {
+            FAIL("expected 2 rows");
+        }
     }
 
     // Test no trailing newline
@@ -219,7 +263,11 @@ void test_line_endings() {
         });
 
         std::remove(filename.c_str());
-        if (count == 2 && last_a == 3) { PASS(); } else { FAIL("should parse last row"); }
+        if (count == 2 && last_a == 3) {
+            PASS();
+        } else {
+            FAIL("should parse last row");
+        }
     }
 
     // Test mixed line endings - note: mixed endings may be processed differently
@@ -238,7 +286,11 @@ void test_line_endings() {
 
         std::remove(filename.c_str());
         // Mixed line endings can be tricky - accept 3 or 4 rows
-        if (count >= 3 && count <= 4) { PASS(); } else { FAIL("expected 3-4 rows, got " + std::to_string(count)); }
+        if (count >= 3 && count <= 4) {
+            PASS();
+        } else {
+            FAIL("expected 3-4 rows, got " + std::to_string(count));
+        }
     }
 }
 
@@ -263,21 +315,36 @@ void test_whitespace() {
     blazecsv::TurboReader<2> reader(filename);
     std::vector<std::string> names;
 
-    reader.for_each([&names](const auto& fields) {
-        names.push_back(std::string(fields[0].view()));
-    });
+    reader.for_each(
+        [&names](const auto& fields) { names.push_back(std::string(fields[0].view())); });
 
     TEST("normal field preserved");
-    if (names[0] == "normal") { PASS(); } else { FAIL("expected 'normal'"); }
+    if (names[0] == "normal") {
+        PASS();
+    } else {
+        FAIL("expected 'normal'");
+    }
 
     TEST("leading space preserved");
-    if (names[1] == " leading") { PASS(); } else { FAIL("expected ' leading'"); }
+    if (names[1] == " leading") {
+        PASS();
+    } else {
+        FAIL("expected ' leading'");
+    }
 
     TEST("trailing space preserved");
-    if (names[2] == "trailing ") { PASS(); } else { FAIL("expected 'trailing '"); }
+    if (names[2] == "trailing ") {
+        PASS();
+    } else {
+        FAIL("expected 'trailing '");
+    }
 
     TEST("both spaces preserved");
-    if (names[3] == " both ") { PASS(); } else { FAIL("expected ' both '"); }
+    if (names[3] == " both ") {
+        PASS();
+    } else {
+        FAIL("expected ' both '");
+    }
 
     std::remove(filename.c_str());
 }
@@ -305,7 +372,11 @@ void test_custom_delimiters() {
         });
 
         std::remove(filename.c_str());
-        if (sum == 6) { PASS(); } else { FAIL("expected sum 6"); }
+        if (sum == 6) {
+            PASS();
+        } else {
+            FAIL("expected sum 6");
+        }
     }
 
     // Semicolon delimiter
@@ -319,12 +390,15 @@ void test_custom_delimiters() {
 
         blazecsv::Reader<2, ';', blazecsv::NoErrorCheck, blazecsv::NoNullCheck> reader(filename);
         int sum = 0;
-        reader.for_each([&sum](const auto& fields) {
-            sum += fields[0].value_or(0) + fields[1].value_or(0);
-        });
+        reader.for_each(
+            [&sum](const auto& fields) { sum += fields[0].value_or(0) + fields[1].value_or(0); });
 
         std::remove(filename.c_str());
-        if (sum == 30) { PASS(); } else { FAIL("expected sum 30"); }
+        if (sum == 30) {
+            PASS();
+        } else {
+            FAIL("expected sum 30");
+        }
     }
 
     // Colon delimiter
@@ -344,7 +418,11 @@ void test_custom_delimiters() {
         });
 
         std::remove(filename.c_str());
-        if (key == "foo" && value == "bar") { PASS(); } else { FAIL("key/value mismatch"); }
+        if (key == "foo" && value == "bar") {
+            PASS();
+        } else {
+            FAIL("key/value mismatch");
+        }
     }
 }
 
@@ -368,7 +446,11 @@ void test_edge_cases() {
         size_t count = reader.for_each([](const auto&) {});
 
         std::remove(filename.c_str());
-        if (count == 1) { PASS(); } else { FAIL("expected 1 row"); }
+        if (count == 1) {
+            PASS();
+        } else {
+            FAIL("expected 1 row");
+        }
     }
 
     // Many columns
@@ -391,7 +473,11 @@ void test_edge_cases() {
 
         std::remove(filename.c_str());
         // Sum of 0..19 = 190
-        if (sum == 190) { PASS(); } else { FAIL("expected sum 190, got " + std::to_string(sum)); }
+        if (sum == 190) {
+            PASS();
+        } else {
+            FAIL("expected sum 190, got " + std::to_string(sum));
+        }
     }
 
     // Consecutive delimiters (empty fields)
@@ -405,12 +491,14 @@ void test_edge_cases() {
 
         blazecsv::SafeReader<3> reader(filename);
         bool middle_empty = false;
-        reader.for_each([&middle_empty](const auto& fields) {
-            middle_empty = fields[1].empty();
-        });
+        reader.for_each([&middle_empty](const auto& fields) { middle_empty = fields[1].empty(); });
 
         std::remove(filename.c_str());
-        if (middle_empty) { PASS(); } else { FAIL("middle field should be empty"); }
+        if (middle_empty) {
+            PASS();
+        } else {
+            FAIL("middle field should be empty");
+        }
     }
 
     // Trailing empty columns
@@ -424,12 +512,14 @@ void test_edge_cases() {
 
         blazecsv::SafeReader<3> reader(filename);
         bool last_empty = false;
-        reader.for_each([&last_empty](const auto& fields) {
-            last_empty = fields[2].empty();
-        });
+        reader.for_each([&last_empty](const auto& fields) { last_empty = fields[2].empty(); });
 
         std::remove(filename.c_str());
-        if (last_empty) { PASS(); } else { FAIL("last field should be empty"); }
+        if (last_empty) {
+            PASS();
+        } else {
+            FAIL("last field should be empty");
+        }
     }
 
     // All empty row
@@ -448,7 +538,11 @@ void test_edge_cases() {
         });
 
         std::remove(filename.c_str());
-        if (all_empty) { PASS(); } else { FAIL("all fields should be empty"); }
+        if (all_empty) {
+            PASS();
+        } else {
+            FAIL("all fields should be empty");
+        }
     }
 
     // Very long field
@@ -463,12 +557,14 @@ void test_edge_cases() {
 
         blazecsv::TurboReader<1> reader(filename);
         size_t len = 0;
-        reader.for_each([&len](const auto& fields) {
-            len = fields[0].size();
-        });
+        reader.for_each([&len](const auto& fields) { len = fields[0].size(); });
 
         std::remove(filename.c_str());
-        if (len == 10000) { PASS(); } else { FAIL("expected 10000 chars"); }
+        if (len == 10000) {
+            PASS();
+        } else {
+            FAIL("expected 10000 chars");
+        }
     }
 }
 
@@ -493,11 +589,13 @@ void test_for_each_until() {
         blazecsv::TurboReader<1> reader(filename);
         size_t count = 0;
 
-        reader.for_each_until([&count](const auto&) {
-            return ++count < 5;
-        });
+        reader.for_each_until([&count](const auto&) { return ++count < 5; });
 
-        if (count == 5) { PASS(); } else { FAIL("expected 5 rows"); }
+        if (count == 5) {
+            PASS();
+        } else {
+            FAIL("expected 5 rows");
+        }
     }
 
     TEST("stop at specific value");
@@ -514,7 +612,11 @@ void test_for_each_until() {
             return true;  // Continue
         });
 
-        if (found_at == 42) { PASS(); } else { FAIL("should find 42"); }
+        if (found_at == 42) {
+            PASS();
+        } else {
+            FAIL("should find 42");
+        }
     }
 
     TEST("process all if never returns false");
@@ -527,7 +629,11 @@ void test_for_each_until() {
             return true;  // Always continue
         });
 
-        if (count == 100) { PASS(); } else { FAIL("should process all 100 rows"); }
+        if (count == 100) {
+            PASS();
+        } else {
+            FAIL("should process all 100 rows");
+        }
     }
 
     TEST("stop immediately");
@@ -540,7 +646,11 @@ void test_for_each_until() {
             return false;  // Stop immediately
         });
 
-        if (count == 1) { PASS(); } else { FAIL("should process only 1 row"); }
+        if (count == 1) {
+            PASS();
+        } else {
+            FAIL("should process only 1 row");
+        }
     }
 
     std::remove(filename.c_str());
@@ -580,7 +690,8 @@ void test_parallel_reader_correctness() {
         if (sum.load() == expected_sum) {
             PASS();
         } else {
-            FAIL("expected " + std::to_string(expected_sum) + ", got " + std::to_string(sum.load()));
+            FAIL("expected " + std::to_string(expected_sum) + ", got " +
+                 std::to_string(sum.load()));
         }
     }
 
@@ -589,9 +700,8 @@ void test_parallel_reader_correctness() {
         blazecsv::ParallelReader<2> reader(filename);
         std::atomic<size_t> count{0};
 
-        reader.for_each_parallel([&count](const auto&) {
-            count.fetch_add(1, std::memory_order_relaxed);
-        });
+        reader.for_each_parallel(
+            [&count](const auto&) { count.fetch_add(1, std::memory_order_relaxed); });
 
         if (count.load() == num_rows) {
             PASS();
@@ -622,11 +732,14 @@ void test_parallel_reader_correctness() {
         blazecsv::ParallelReader<2> reader(filename, 2);
         std::atomic<size_t> count{0};
 
-        reader.for_each_parallel([&count](const auto&) {
-            count.fetch_add(1, std::memory_order_relaxed);
-        });
+        reader.for_each_parallel(
+            [&count](const auto&) { count.fetch_add(1, std::memory_order_relaxed); });
 
-        if (count.load() == num_rows) { PASS(); } else { FAIL("row count mismatch"); }
+        if (count.load() == num_rows) {
+            PASS();
+        } else {
+            FAIL("row count mismatch");
+        }
     }
 
     std::remove(filename.c_str());
@@ -655,20 +768,26 @@ void test_many_rows() {
         blazecsv::TurboReader<2> reader(filename);
         size_t count = reader.for_each([](const auto&) {});
 
-        if (count == target_rows) { PASS(); } else { FAIL("expected 100K rows"); }
+        if (count == target_rows) {
+            PASS();
+        } else {
+            FAIL("expected 100K rows");
+        }
     }
 
     TEST("100K rows sum");
     {
         blazecsv::TurboReader<2> reader(filename);
         int64_t sum = 0;
-        reader.for_each([&sum](const auto& fields) {
-            sum += fields[0].value_or(0);
-        });
+        reader.for_each([&sum](const auto& fields) { sum += fields[0].value_or(0); });
 
         // Sum of 0..99999 = 99999 * 100000 / 2 = 4999950000
         int64_t expected = 4999950000LL;
-        if (sum == expected) { PASS(); } else { FAIL("sum mismatch"); }
+        if (sum == expected) {
+            PASS();
+        } else {
+            FAIL("sum mismatch");
+        }
     }
 
     std::remove(filename.c_str());
@@ -698,7 +817,11 @@ void test_fieldref_edge_cases() {
         });
 
         std::remove(filename.c_str());
-        if (got_error) { PASS(); } else { FAIL("empty should fail to parse"); }
+        if (got_error) {
+            PASS();
+        } else {
+            FAIL("empty should fail to parse");
+        }
     }
 
     TEST("view on numeric field");
@@ -710,12 +833,14 @@ void test_fieldref_edge_cases() {
 
         blazecsv::TurboReader<1> reader(filename);
         std::string_view sv;
-        reader.for_each([&sv](const auto& fields) {
-            sv = fields[0].view();
-        });
+        reader.for_each([&sv](const auto& fields) { sv = fields[0].view(); });
 
         std::remove(filename.c_str());
-        if (sv == "12345") { PASS(); } else { FAIL("view mismatch"); }
+        if (sv == "12345") {
+            PASS();
+        } else {
+            FAIL("view mismatch");
+        }
     }
 
     TEST("size() returns correct length");
@@ -727,12 +852,14 @@ void test_fieldref_edge_cases() {
 
         blazecsv::TurboReader<1> reader(filename);
         size_t sz = 0;
-        reader.for_each([&sz](const auto& fields) {
-            sz = fields[0].size();
-        });
+        reader.for_each([&sz](const auto& fields) { sz = fields[0].size(); });
 
         std::remove(filename.c_str());
-        if (sz == 5) { PASS(); } else { FAIL("expected size 5"); }
+        if (sz == 5) {
+            PASS();
+        } else {
+            FAIL("expected size 5");
+        }
     }
 
     TEST("empty() on empty field");
@@ -751,7 +878,11 @@ void test_fieldref_edge_cases() {
         });
 
         std::remove(filename.c_str());
-        if (first_empty && second_not_empty) { PASS(); } else { FAIL("empty check failed"); }
+        if (first_empty && second_not_empty) {
+            PASS();
+        } else {
+            FAIL("empty check failed");
+        }
     }
 }
 

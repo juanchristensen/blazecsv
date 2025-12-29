@@ -3,9 +3,10 @@
 // Demonstrates parsing OHLCV (Open, High, Low, Close, Volume) stock data
 
 #include <blazecsv/blazecsv.hpp>
-#include <iostream>
-#include <fstream>
+
 #include <chrono>
+#include <fstream>
+#include <iostream>
 
 // Trade record structure
 struct Trade {
@@ -67,10 +68,8 @@ int main() {
 
             std::cout << "   " << static_cast<int>(ymd.year()) << "-"
                       << static_cast<unsigned>(ymd.month()) << "-"
-                      << static_cast<unsigned>(ymd.day())
-                      << ": O=" << open << " H=" << high << " L=" << low
-                      << " C=" << close << " V=" << volume
-                      << " | Range: $" << range
+                      << static_cast<unsigned>(ymd.day()) << ": O=" << open << " H=" << high
+                      << " L=" << low << " C=" << close << " V=" << volume << " | Range: $" << range
                       << " | Change: " << (change_pct >= 0 ? "+" : "") << change_pct << "%\n";
         });
     }
@@ -90,8 +89,10 @@ int main() {
             double low = fields[3].value_or(0.0);
             int64_t volume = fields[5].template value_or<int64_t>(0);
 
-            if (high > max_high) max_high = high;
-            if (low < min_low) min_low = low;
+            if (high > max_high)
+                max_high = high;
+            if (low < min_low)
+                min_low = low;
             total_volume += volume;
             ++count;
         });

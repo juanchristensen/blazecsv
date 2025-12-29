@@ -3,10 +3,11 @@
 // Demonstrates multi-threaded CSV parsing for large files
 
 #include <blazecsv/blazecsv.hpp>
-#include <iostream>
-#include <fstream>
-#include <chrono>
+
 #include <atomic>
+#include <chrono>
+#include <fstream>
+#include <iostream>
 #include <thread>
 
 int main() {
@@ -22,8 +23,8 @@ int main() {
         std::ofstream f(filename);
         f << "id,symbol,price,quantity,side\n";
         for (size_t i = 0; i < num_rows; ++i) {
-            f << i << ",AAPL," << (150.0 + (i % 100) * 0.01) << ","
-              << (100 + i % 1000) << "," << (i % 2 ? "BUY" : "SELL") << "\n";
+            f << i << ",AAPL," << (150.0 + (i % 100) * 0.01) << "," << (100 + i % 1000) << ","
+              << (i % 2 ? "BUY" : "SELL") << "\n";
         }
     }
     std::cout << "   Done!\n\n";
@@ -68,9 +69,9 @@ int main() {
 
             // Use relaxed atomic add for aggregation
             double current = total_value.load(std::memory_order_relaxed);
-            while (!total_value.compare_exchange_weak(
-                current, current + price * qty,
-                std::memory_order_relaxed, std::memory_order_relaxed)) {}
+            while (!total_value.compare_exchange_weak(current, current + price * qty,
+                                                      std::memory_order_relaxed,
+                                                      std::memory_order_relaxed)) {}
 
             total_count.fetch_add(1, std::memory_order_relaxed);
         });
@@ -110,7 +111,7 @@ int main() {
             // Atomic update for aggregation
             double current = atomic_value.load(std::memory_order_relaxed);
             while (!atomic_value.compare_exchange_weak(current, current + row_value,
-                   std::memory_order_relaxed)) {}
+                                                       std::memory_order_relaxed)) {}
             atomic_count.fetch_add(1, std::memory_order_relaxed);
         });
 
@@ -136,9 +137,8 @@ int main() {
 
         std::atomic<size_t> count{0};
 
-        reader.for_each_parallel([&](const auto&) {
-            count.fetch_add(1, std::memory_order_relaxed);
-        });
+        reader.for_each_parallel(
+            [&](const auto&) { count.fetch_add(1, std::memory_order_relaxed); });
 
         auto end = std::chrono::high_resolution_clock::now();
         auto duration_ms = std::chrono::duration<double, std::milli>(end - start).count();

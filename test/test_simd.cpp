@@ -3,14 +3,19 @@
 // Tests for SIMD delimiter and newline detection
 
 #include <blazecsv/blazecsv.hpp>
-#include <iostream>
+
 #include <chrono>
 #include <cstring>
-#include <vector>
+#include <iostream>
 #include <random>
+#include <vector>
 
-#define TEST(name) std::cout << "  " << name << "... "; tests_run++
-#define PASS() std::cout << "PASS\n"; tests_passed++
+#define TEST(name)                       \
+    std::cout << "  " << name << "... "; \
+    tests_run++
+#define PASS()             \
+    std::cout << "PASS\n"; \
+    tests_passed++
 #define FAIL(msg) std::cout << "FAIL: " << msg << "\n"
 
 static int tests_run = 0;
@@ -21,11 +26,14 @@ void test_simd_detection() {
 
     TEST("SIMD available");
 #if defined(__ARM_NEON) || defined(__ARM_NEON__)
-    std::cout << "PASS (ARM NEON)\n"; tests_passed++;
+    std::cout << "PASS (ARM NEON)\n";
+    tests_passed++;
 #elif defined(__SSE2__)
-    std::cout << "PASS (x86 SSE2)\n"; tests_passed++;
+    std::cout << "PASS (x86 SSE2)\n";
+    tests_passed++;
 #else
-    std::cout << "PASS (scalar fallback)\n"; tests_passed++;
+    std::cout << "PASS (scalar fallback)\n";
+    tests_passed++;
 #endif
 }
 
@@ -70,7 +78,8 @@ void test_newline_finding() {
         TEST(("newline at " + std::to_string(expected)).c_str());
         size_t result = blazecsv::detail::find_newline(data.data(), data.size());
         // For \r\n, accept either position
-        if (result == expected || (data.find("\r\n") != std::string::npos && result == expected + 1)) {
+        if (result == expected ||
+            (data.find("\r\n") != std::string::npos && result == expected + 1)) {
             PASS();
         } else {
             FAIL("got " + std::to_string(result) + ", expected " + std::to_string(expected));
@@ -98,9 +107,10 @@ void test_simd_performance() {
         for (int iter = 0; iter < 100; ++iter) {
             size_t pos = 0;
             while (pos < buffer_size) {
-                size_t next = blazecsv::detail::find_field_end(
-                    buffer.data() + pos, buffer_size - pos, ',');
-                if (next == buffer_size - pos) break;
+                size_t next =
+                    blazecsv::detail::find_field_end(buffer.data() + pos, buffer_size - pos, ',');
+                if (next == buffer_size - pos)
+                    break;
                 total_found++;
                 pos += next + 1;
             }
@@ -109,7 +119,8 @@ void test_simd_performance() {
         auto end = std::chrono::high_resolution_clock::now();
         auto duration_us = std::chrono::duration<double, std::micro>(end - start).count();
 
-        std::cout << "PASS (" << duration_us / 100 << " us/MB, found " << total_found / 100 << " delimiters)\n";
+        std::cout << "PASS (" << duration_us / 100 << " us/MB, found " << total_found / 100
+                  << " delimiters)\n";
         tests_passed++;
     }
 
@@ -127,9 +138,10 @@ void test_simd_performance() {
         for (int iter = 0; iter < 100; ++iter) {
             size_t pos = 0;
             while (pos < buffer_size) {
-                size_t next = blazecsv::detail::find_newline(
-                    buffer.data() + pos, buffer_size - pos);
-                if (next == buffer_size - pos) break;
+                size_t next =
+                    blazecsv::detail::find_newline(buffer.data() + pos, buffer_size - pos);
+                if (next == buffer_size - pos)
+                    break;
                 total_found++;
                 pos += next + 1;
             }
@@ -138,7 +150,8 @@ void test_simd_performance() {
         auto end = std::chrono::high_resolution_clock::now();
         auto duration_us = std::chrono::duration<double, std::micro>(end - start).count();
 
-        std::cout << "PASS (" << duration_us / 100 << " us/MB, found " << total_found / 100 << " newlines)\n";
+        std::cout << "PASS (" << duration_us / 100 << " us/MB, found " << total_found / 100
+                  << " newlines)\n";
         tests_passed++;
     }
 }
@@ -172,26 +185,42 @@ void test_edge_cases() {
     TEST("empty buffer");
     {
         size_t result = blazecsv::detail::find_field_end("", 0, ',');
-        if (result == 0) { PASS(); } else { FAIL("expected 0"); }
+        if (result == 0) {
+            PASS();
+        } else {
+            FAIL("expected 0");
+        }
     }
 
     TEST("single char - delimiter");
     {
         size_t result = blazecsv::detail::find_field_end(",", 1, ',');
-        if (result == 0) { PASS(); } else { FAIL("expected 0"); }
+        if (result == 0) {
+            PASS();
+        } else {
+            FAIL("expected 0");
+        }
     }
 
     TEST("single char - not delimiter");
     {
         size_t result = blazecsv::detail::find_field_end("x", 1, ',');
-        if (result == 1) { PASS(); } else { FAIL("expected 1"); }
+        if (result == 1) {
+            PASS();
+        } else {
+            FAIL("expected 1");
+        }
     }
 
     TEST("all delimiters");
     {
         const char* data = ",,,,";
         size_t result = blazecsv::detail::find_field_end(data, 4, ',');
-        if (result == 0) { PASS(); } else { FAIL("expected 0"); }
+        if (result == 0) {
+            PASS();
+        } else {
+            FAIL("expected 0");
+        }
     }
 
     TEST("delimiter at exact SIMD boundary (16)");
@@ -200,7 +229,11 @@ void test_edge_cases() {
         std::memset(buffer, 'x', 32);
         buffer[15] = ',';  // At position 15 (0-indexed)
         size_t result = blazecsv::detail::find_field_end(buffer, 32, ',');
-        if (result == 15) { PASS(); } else { FAIL("got " + std::to_string(result)); }
+        if (result == 15) {
+            PASS();
+        } else {
+            FAIL("got " + std::to_string(result));
+        }
     }
 }
 

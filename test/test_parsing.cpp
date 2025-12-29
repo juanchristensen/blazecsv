@@ -3,13 +3,18 @@
 // Tests for parsing integers, doubles, booleans, and strings
 
 #include <blazecsv/blazecsv.hpp>
-#include <iostream>
-#include <fstream>
-#include <cmath>
-#include <cassert>
 
-#define TEST(name) std::cout << "  " << name << "... "; tests_run++
-#define PASS() std::cout << "PASS\n"; tests_passed++
+#include <cassert>
+#include <cmath>
+#include <fstream>
+#include <iostream>
+
+#define TEST(name)                       \
+    std::cout << "  " << name << "... "; \
+    tests_run++
+#define PASS()             \
+    std::cout << "PASS\n"; \
+    tests_passed++
 #define FAIL(msg) std::cout << "FAIL: " << msg << "\n"
 
 static int tests_run = 0;
@@ -25,8 +30,8 @@ void test_integer_parsing() {
         f << "0\n";
         f << "42\n";
         f << "-123\n";
-        f << "2147483647\n";    // INT32_MAX
-        f << "-2147483648\n";   // INT32_MIN
+        f << "2147483647\n";           // INT32_MAX
+        f << "-2147483648\n";          // INT32_MIN
         f << "9223372036854775807\n";  // INT64_MAX
     }
 
@@ -38,22 +43,46 @@ void test_integer_parsing() {
     });
 
     TEST("zero");
-    if (values[0] == 0) { PASS(); } else { FAIL("expected 0"); }
+    if (values[0] == 0) {
+        PASS();
+    } else {
+        FAIL("expected 0");
+    }
 
     TEST("positive");
-    if (values[1] == 42) { PASS(); } else { FAIL("expected 42"); }
+    if (values[1] == 42) {
+        PASS();
+    } else {
+        FAIL("expected 42");
+    }
 
     TEST("negative");
-    if (values[2] == -123) { PASS(); } else { FAIL("expected -123"); }
+    if (values[2] == -123) {
+        PASS();
+    } else {
+        FAIL("expected -123");
+    }
 
     TEST("INT32_MAX");
-    if (values[3] == 2147483647) { PASS(); } else { FAIL("expected 2147483647"); }
+    if (values[3] == 2147483647) {
+        PASS();
+    } else {
+        FAIL("expected 2147483647");
+    }
 
     TEST("INT32_MIN");
-    if (values[4] == -2147483648LL) { PASS(); } else { FAIL("expected -2147483648"); }
+    if (values[4] == -2147483648LL) {
+        PASS();
+    } else {
+        FAIL("expected -2147483648");
+    }
 
     TEST("INT64_MAX");
-    if (values[5] == 9223372036854775807LL) { PASS(); } else { FAIL("expected INT64_MAX"); }
+    if (values[5] == 9223372036854775807LL) {
+        PASS();
+    } else {
+        FAIL("expected INT64_MAX");
+    }
 
     std::remove(filename.c_str());
 }
@@ -78,37 +107,67 @@ void test_double_parsing() {
     blazecsv::SafeReader<1> reader(filename);
     std::vector<double> values;
 
-    reader.for_each([&values](const auto& fields) {
-        values.push_back(fields[0].value_or(0.0));
-    });
+    reader.for_each([&values](const auto& fields) { values.push_back(fields[0].value_or(0.0)); });
 
     auto approx_eq = [](double a, double b, double eps = 1e-6) {
         return std::abs(a - b) < eps || std::abs(a - b) / std::max(std::abs(a), std::abs(b)) < eps;
     };
 
     TEST("zero");
-    if (approx_eq(values[0], 0.0)) { PASS(); } else { FAIL("expected 0.0"); }
+    if (approx_eq(values[0], 0.0)) {
+        PASS();
+    } else {
+        FAIL("expected 0.0");
+    }
 
     TEST("pi");
-    if (approx_eq(values[1], 3.14159)) { PASS(); } else { FAIL("expected 3.14159"); }
+    if (approx_eq(values[1], 3.14159)) {
+        PASS();
+    } else {
+        FAIL("expected 3.14159");
+    }
 
     TEST("negative e");
-    if (approx_eq(values[2], -2.71828)) { PASS(); } else { FAIL("expected -2.71828"); }
+    if (approx_eq(values[2], -2.71828)) {
+        PASS();
+    } else {
+        FAIL("expected -2.71828");
+    }
 
     TEST("scientific positive");
-    if (approx_eq(values[3], 1.23e10)) { PASS(); } else { FAIL("expected 1.23e10"); }
+    if (approx_eq(values[3], 1.23e10)) {
+        PASS();
+    } else {
+        FAIL("expected 1.23e10");
+    }
 
     TEST("scientific negative");
-    if (approx_eq(values[4], 1.23e-10)) { PASS(); } else { FAIL("expected 1.23e-10"); }
+    if (approx_eq(values[4], 1.23e-10)) {
+        PASS();
+    } else {
+        FAIL("expected 1.23e-10");
+    }
 
     TEST("large exponent");
-    if (values[5] > 1e307) { PASS(); } else { FAIL("expected ~1e308"); }
+    if (values[5] > 1e307) {
+        PASS();
+    } else {
+        FAIL("expected ~1e308");
+    }
 
     TEST("leading decimal");
-    if (approx_eq(values[6], 0.5)) { PASS(); } else { FAIL("expected 0.5"); }
+    if (approx_eq(values[6], 0.5)) {
+        PASS();
+    } else {
+        FAIL("expected 0.5");
+    }
 
     TEST("negative leading decimal");
-    if (approx_eq(values[7], -0.5)) { PASS(); } else { FAIL("expected -0.5"); }
+    if (approx_eq(values[7], -0.5)) {
+        PASS();
+    } else {
+        FAIL("expected -0.5");
+    }
 
     std::remove(filename.c_str());
 }
@@ -140,34 +199,74 @@ void test_boolean_parsing() {
     });
 
     TEST("true lowercase");
-    if (values[0] && *values[0] == true) { PASS(); } else { FAIL("expected true"); }
+    if (values[0] && *values[0] == true) {
+        PASS();
+    } else {
+        FAIL("expected true");
+    }
 
     TEST("false lowercase");
-    if (values[1] && *values[1] == false) { PASS(); } else { FAIL("expected false"); }
+    if (values[1] && *values[1] == false) {
+        PASS();
+    } else {
+        FAIL("expected false");
+    }
 
     TEST("True mixed");
-    if (values[2] && *values[2] == true) { PASS(); } else { FAIL("expected true"); }
+    if (values[2] && *values[2] == true) {
+        PASS();
+    } else {
+        FAIL("expected true");
+    }
 
     TEST("False mixed");
-    if (values[3] && *values[3] == false) { PASS(); } else { FAIL("expected false"); }
+    if (values[3] && *values[3] == false) {
+        PASS();
+    } else {
+        FAIL("expected false");
+    }
 
     TEST("TRUE uppercase");
-    if (values[4] && *values[4] == true) { PASS(); } else { FAIL("expected true"); }
+    if (values[4] && *values[4] == true) {
+        PASS();
+    } else {
+        FAIL("expected true");
+    }
 
     TEST("FALSE uppercase");
-    if (values[5] && *values[5] == false) { PASS(); } else { FAIL("expected false"); }
+    if (values[5] && *values[5] == false) {
+        PASS();
+    } else {
+        FAIL("expected false");
+    }
 
     TEST("1 as true");
-    if (values[6] && *values[6] == true) { PASS(); } else { FAIL("expected true"); }
+    if (values[6] && *values[6] == true) {
+        PASS();
+    } else {
+        FAIL("expected true");
+    }
 
     TEST("0 as false");
-    if (values[7] && *values[7] == false) { PASS(); } else { FAIL("expected false"); }
+    if (values[7] && *values[7] == false) {
+        PASS();
+    } else {
+        FAIL("expected false");
+    }
 
     TEST("yes as true");
-    if (values[8] && *values[8] == true) { PASS(); } else { FAIL("expected true"); }
+    if (values[8] && *values[8] == true) {
+        PASS();
+    } else {
+        FAIL("expected true");
+    }
 
     TEST("no as false");
-    if (values[9] && *values[9] == false) { PASS(); } else { FAIL("expected false"); }
+    if (values[9] && *values[9] == false) {
+        PASS();
+    } else {
+        FAIL("expected false");
+    }
 
     std::remove(filename.c_str());
 }
@@ -223,15 +322,21 @@ void test_tsv_parsing() {
     blazecsv::TsvTurboReader<3> reader(filename);
     std::vector<int> ids;
 
-    reader.for_each([&ids](const auto& fields) {
-        ids.push_back(fields[0].value_or(-1));
-    });
+    reader.for_each([&ids](const auto& fields) { ids.push_back(fields[0].value_or(-1)); });
 
     TEST("tsv row 1");
-    if (ids[0] == 1) { PASS(); } else { FAIL("expected 1"); }
+    if (ids[0] == 1) {
+        PASS();
+    } else {
+        FAIL("expected 1");
+    }
 
     TEST("tsv row 2");
-    if (ids[1] == 2) { PASS(); } else { FAIL("expected 2"); }
+    if (ids[1] == 2) {
+        PASS();
+    } else {
+        FAIL("expected 2");
+    }
 
     std::remove(filename.c_str());
 }
@@ -250,7 +355,11 @@ void test_header_access() {
     auto headers = reader.headers();
 
     TEST("header count");
-    if (headers.size() == 3) { PASS(); } else { FAIL("expected 3 headers"); }
+    if (headers.size() == 3) {
+        PASS();
+    } else {
+        FAIL("expected 3 headers");
+    }
 
     TEST("header names");
     if (headers[0] == "id" && headers[1] == "name" && headers[2] == "score") {

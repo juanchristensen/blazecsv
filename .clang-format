@@ -66,5 +66,5 @@ Cpp11BracedListStyle: true
 FixNamespaceComments: true
 MaxEmptyLinesToKeep: 1
 ReflowComments: true
-Standard: c++23
+Standard: Latest
 ...

@@ -3,12 +3,13 @@
 // Quick performance test without external dependencies
 
 #include <blazecsv/blazecsv.hpp>
-#include <iostream>
-#include <fstream>
-#include <chrono>
-#include <thread>
+
 #include <atomic>
+#include <chrono>
+#include <fstream>
 #include <iomanip>
+#include <iostream>
+#include <thread>
 
 constexpr size_t SMALL_ROWS = 100'000;
 constexpr size_t LARGE_ROWS = 1'000'000;
@@ -18,14 +19,13 @@ void generate_csv(const std::string& filename, size_t rows) {
     f << "Date,Open,High,Low,Close,Volume,Symbol\n";
     for (size_t i = 0; i < rows; ++i) {
         double base = 150.0 + (i % 100);
-        f << "2024-01-" << std::setw(2) << std::setfill('0') << ((i % 28) + 1) << ","
-          << std::fixed << std::setprecision(2)
-          << base << "," << (base + 2.5) << "," << (base - 1.5) << ","
+        f << "2024-01-" << std::setw(2) << std::setfill('0') << ((i % 28) + 1) << "," << std::fixed
+          << std::setprecision(2) << base << "," << (base + 2.5) << "," << (base - 1.5) << ","
           << (base + 0.75) << "," << (1000000 + i * 100) << ",AAPL\n";
     }
 }
 
-template<typename Func>
+template <typename Func>
 double time_ms(Func&& func) {
     auto start = std::chrono::high_resolution_clock::now();
     func();
@@ -45,9 +45,9 @@ void bench_turbo_reader(const std::string& file, size_t expected_rows) {
         });
     });
 
-    std::cout << "  TurboReader:   " << std::setw(8) << std::fixed << std::setprecision(1)
-              << t << " ms  |  " << std::setprecision(0) << std::setw(12)
-              << (rows / t * 1000) << " rows/sec\n";
+    std::cout << "  TurboReader:   " << std::setw(8) << std::fixed << std::setprecision(1) << t
+              << " ms  |  " << std::setprecision(0) << std::setw(12) << (rows / t * 1000)
+              << " rows/sec\n";
 }
 
 void bench_checked_reader(const std::string& file, size_t expected_rows) {
@@ -56,14 +56,12 @@ void bench_checked_reader(const std::string& file, size_t expected_rows) {
 
     double t = time_ms([&]() {
         blazecsv::CheckedReader<7> reader(file);
-        rows = reader.for_each([&](const auto& fields) {
-            sum += fields[4].value_or(0.0);
-        });
+        rows = reader.for_each([&](const auto& fields) { sum += fields[4].value_or(0.0); });
     });
 
-    std::cout << "  CheckedReader: " << std::setw(8) << std::fixed << std::setprecision(1)
-              << t << " ms  |  " << std::setprecision(0) << std::setw(12)
-              << (rows / t * 1000) << " rows/sec\n";
+    std::cout << "  CheckedReader: " << std::setw(8) << std::fixed << std::setprecision(1) << t
+              << " ms  |  " << std::setprecision(0) << std::setw(12) << (rows / t * 1000)
+              << " rows/sec\n";
 }
 
 void bench_safe_reader(const std::string& file, size_t expected_rows) {
@@ -74,14 +72,15 @@ void bench_safe_reader(const std::string& file, size_t expected_rows) {
         blazecsv::SafeReader<7> reader(file);
         reader.for_each([&](const auto& fields) {
             auto result = fields[4].template parse<double>();
-            if (result) sum += *result;
+            if (result)
+                sum += *result;
             ++rows;
         });
     });
 
-    std::cout << "  SafeReader:    " << std::setw(8) << std::fixed << std::setprecision(1)
-              << t << " ms  |  " << std::setprecision(0) << std::setw(12)
-              << (rows / t * 1000) << " rows/sec\n";
+    std::cout << "  SafeReader:    " << std::setw(8) << std::fixed << std::setprecision(1) << t
+              << " ms  |  " << std::setprecision(0) << std::setw(12) << (rows / t * 1000)
+              << " rows/sec\n";
 }
 
 void bench_parallel_reader(const std::string& file, size_t expected_rows) {
@@ -89,15 +88,13 @@ void bench_parallel_reader(const std::string& file, size_t expected_rows) {
 
     double t = time_ms([&]() {
         blazecsv::ParallelReader<7> reader(file);
-        reader.for_each_parallel([&](const auto&) {
-            rows.fetch_add(1, std::memory_order_relaxed);
-        });
+        reader.for_each_parallel(
+            [&](const auto&) { rows.fetch_add(1, std::memory_order_relaxed); });
     });
 
-    std::cout << "  ParallelReader (" << std::thread::hardware_concurrency() << "T): "
-              << std::setw(5) << std::fixed << std::setprecision(1)
-              << t << " ms  |  " << std::setprecision(0) << std::setw(12)
-              << (rows.load() / t * 1000) << " rows/sec\n";
+    std::cout << "  ParallelReader (" << std::thread::hardware_concurrency()
+              << "T): " << std::setw(5) << std::fixed << std::setprecision(1) << t << " ms  |  "
+              << std::setprecision(0) << std::setw(12) << (rows.load() / t * 1000) << " rows/sec\n";
 }
 
 void bench_raw_access(const std::string& file, size_t expected_rows) {
@@ -113,9 +110,9 @@ void bench_raw_access(const std::string& file, size_t expected_rows) {
         });
     });
 
-    std::cout << "  for_each_raw:  " << std::setw(8) << std::fixed << std::setprecision(1)
-              << t << " ms  |  " << std::setprecision(0) << std::setw(12)
-              << (rows / t * 1000) << " rows/sec\n";
+    std::cout << "  for_each_raw:  " << std::setw(8) << std::fixed << std::setprecision(1) << t
+              << " ms  |  " << std::setprecision(0) << std::setw(12) << (rows / t * 1000)
+              << " rows/sec\n";
 }
 
 int main() {

@@ -3,8 +3,9 @@
 // Demonstrates the simplest way to use BlazeCSV
 
 #include <blazecsv/blazecsv.hpp>
-#include <iostream>
+
 #include <fstream>
+#include <iostream>
 
 int main() {
     // Create a sample CSV file
@@ -33,8 +34,7 @@ int main() {
 
         // Iterate over rows
         reader.for_each([](const auto& fields) {
-            std::cout << "   " << fields[0].view() << ": "
-                      << fields[1].value_or(0) << " years, "
+            std::cout << "   " << fields[0].view() << ": " << fields[1].value_or(0) << " years, "
                       << "score = " << fields[2].value_or(0.0) << "\n";
         });
     }

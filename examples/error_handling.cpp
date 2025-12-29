@@ -3,8 +3,9 @@
 // Demonstrates compile-time error policies and std::expected
 
 #include <blazecsv/blazecsv.hpp>
-#include <iostream>
+
 #include <fstream>
+#include <iostream>
 
 int main() {
     // Create a CSV with some problematic data
@@ -13,11 +14,11 @@ int main() {
         std::ofstream f(filename);
         f << "id,name,value,active\n";
         f << "1,Alice,100.5,true\n";
-        f << "2,Bob,invalid,false\n";       // Invalid number
-        f << "3,Charlie,,yes\n";             // Empty value (null)
-        f << "4,Diana,200.0,maybe\n";        // Invalid boolean
-        f << "5,Eve,NA,1\n";                 // NA value (null)
-        f << "6,Frank,300.0\n";              // Missing column
+        f << "2,Bob,invalid,false\n";  // Invalid number
+        f << "3,Charlie,,yes\n";       // Empty value (null)
+        f << "4,Diana,200.0,maybe\n";  // Invalid boolean
+        f << "5,Eve,NA,1\n";           // NA value (null)
+        f << "6,Frank,300.0\n";        // Missing column
     }
 
     std::cout << "=== BlazeCSV Error Handling Example ===\n\n";

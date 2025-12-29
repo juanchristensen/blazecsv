@@ -3,12 +3,17 @@
 // Tests for error policies, null handling, and edge cases
 
 #include <blazecsv/blazecsv.hpp>
-#include <iostream>
-#include <fstream>
-#include <cassert>
 
-#define TEST(name) std::cout << "  " << name << "... "; tests_run++
-#define PASS() std::cout << "PASS\n"; tests_passed++
+#include <cassert>
+#include <fstream>
+#include <iostream>
+
+#define TEST(name)                       \
+    std::cout << "  " << name << "... "; \
+    tests_run++
+#define PASS()             \
+    std::cout << "PASS\n"; \
+    tests_passed++
 #define FAIL(msg) std::cout << "FAIL: " << msg << "\n"
 
 static int tests_run = 0;
@@ -44,14 +49,14 @@ void test_null_policies() {
     {
         std::ofstream f(filename);
         f << "id,value\n";
-        f << "1,\n";           // Empty (row 0)
-        f << "2,NA\n";         // NA (row 1)
-        f << "3,N/A\n";        // N/A (row 2)
-        f << "4,null\n";       // null (row 3)
-        f << "5,NULL\n";       // NULL (row 4)
-        f << "6,none\n";       // none (row 5)
-        f << "7,-\n";          // dash (row 6)
-        f << "8,actual\n";     // actual value (row 7)
+        f << "1,\n";        // Empty (row 0)
+        f << "2,NA\n";      // NA (row 1)
+        f << "3,N/A\n";     // N/A (row 2)
+        f << "4,null\n";    // null (row 3)
+        f << "5,NULL\n";    // NULL (row 4)
+        f << "6,none\n";    // none (row 5)
+        f << "7,-\n";       // dash (row 6)
+        f << "8,actual\n";  // actual value (row 7)
     }
 
     TEST("NullStrict - only empty is null");
@@ -64,7 +69,8 @@ void test_null_policies() {
         });
 
         // Only empty (row 0) should be null with NullStrict
-        if (is_null.size() >= 8 && is_null[0] == true && is_null[1] == false && is_null[7] == false) {
+        if (is_null.size() >= 8 && is_null[0] == true && is_null[1] == false &&
+            is_null[7] == false) {
             PASS();
         } else {
             FAIL("NullStrict should only treat empty as null");
@@ -99,8 +105,8 @@ void test_null_policies() {
 
         // Rows 0-6 should be null, row 7 should not
         if (is_null.size() >= 8) {
-            bool all_expected_null = is_null[0] && is_null[1] && is_null[2] &&
-                                     is_null[3] && is_null[4] && is_null[5] && is_null[6];
+            bool all_expected_null = is_null[0] && is_null[1] && is_null[2] && is_null[3] &&
+                                     is_null[4] && is_null[5] && is_null[6];
             bool actual_not_null = !is_null[7];
 
             if (all_expected_null && actual_not_null) {
@@ -123,9 +129,9 @@ void test_parse_errors() {
     {
         std::ofstream f(filename);
         f << "int_col,double_col,bool_col\n";
-        f << "123,45.67,true\n";       // Valid
-        f << "abc,not_a_number,maybe\n"; // All invalid
-        f << "overflow9999999999999999999,1e999,partial_true\n"; // Overflow/invalid
+        f << "123,45.67,true\n";                                  // Valid
+        f << "abc,not_a_number,maybe\n";                          // All invalid
+        f << "overflow9999999999999999999,1e999,partial_true\n";  // Overflow/invalid
     }
 
     TEST("valid row parsing");
@@ -139,13 +145,16 @@ void test_parse_errors() {
                 auto double_result = fields[1].template parse<double>();
                 auto bool_result = fields[2].template parse<bool>();
 
-                first_row_valid = int_result.has_value() &&
-                                  double_result.has_value() &&
-                                  bool_result.has_value();
+                first_row_valid =
+                    int_result.has_value() && double_result.has_value() && bool_result.has_value();
             }
         });
 
-        if (first_row_valid) { PASS(); } else { FAIL("valid row should parse"); }
+        if (first_row_valid) {
+            PASS();
+        } else {
+            FAIL("valid row should parse");
+        }
     }
 
     TEST("invalid integer returns error");
@@ -162,7 +171,11 @@ void test_parse_errors() {
             row++;
         });
 
-        if (found_error) { PASS(); } else { FAIL("'abc' should fail to parse as int"); }
+        if (found_error) {
+            PASS();
+        } else {
+            FAIL("'abc' should fail to parse as int");
+        }
     }
 
     TEST("invalid double returns error");
@@ -179,7 +192,11 @@ void test_parse_errors() {
             row++;
         });
 
-        if (found_error) { PASS(); } else { FAIL("'not_a_number' should fail"); }
+        if (found_error) {
+            PASS();
+        } else {
+            FAIL("'not_a_number' should fail");
+        }
     }
 
     TEST("invalid bool returns error");
@@ -196,7 +213,11 @@ void test_parse_errors() {
             row++;
         });
 
-        if (found_error) { PASS(); } else { FAIL("'maybe' should fail as bool"); }
+        if (found_error) {
+            PASS();
+        } else {
+            FAIL("'maybe' should fail as bool");
+        }
     }
 
     TEST("value_or returns default on error");
@@ -212,7 +233,11 @@ void test_parse_errors() {
             row++;
         });
 
-        if (default_value == -999) { PASS(); } else { FAIL("expected default -999"); }
+        if (default_value == -999) {
+            PASS();
+        } else {
+            FAIL("expected default -999");
+        }
     }
 
     std::remove(filename.c_str());
@@ -226,8 +251,8 @@ void test_column_count_mismatch() {
         std::ofstream f(filename);
         f << "a,b,c\n";
         f << "1,2,3\n";
-        f << "4,5\n";        // Missing column
-        f << "6,7,8,9\n";    // Extra column
+        f << "4,5\n";      // Missing column
+        f << "6,7,8,9\n";  // Extra column
         f << "10,11,12\n";
     }
 
@@ -238,7 +263,11 @@ void test_column_count_mismatch() {
 
         // Should process rows with 3+ columns, skip row with only 2
         // Behavior depends on implementation
-        if (count >= 2) { PASS(); } else { FAIL("should process at least 2 rows"); }
+        if (count >= 2) {
+            PASS();
+        } else {
+            FAIL("should process at least 2 rows");
+        }
     }
 
     TEST("CheckedReader reports error");
@@ -266,7 +295,11 @@ void test_empty_file() {
         blazecsv::TurboReader<3> reader(filename);
         size_t count = reader.for_each([](const auto&) {});
 
-        if (count == 0) { PASS(); } else { FAIL("expected 0 rows"); }
+        if (count == 0) {
+            PASS();
+        } else {
+            FAIL("expected 0 rows");
+        }
     }
 
     TEST("header only");
@@ -277,7 +310,11 @@ void test_empty_file() {
         blazecsv::TurboReader<3> reader(filename);
         size_t count = reader.for_each([](const auto&) {});
 
-        if (count == 0) { PASS(); } else { FAIL("expected 0 data rows"); }
+        if (count == 0) {
+            PASS();
+        } else {
+            FAIL("expected 0 data rows");
+        }
     }
 
     std::remove(filename.c_str());
@@ -291,8 +328,8 @@ void test_as_optional() {
         std::ofstream f(filename);
         f << "value\n";
         f << "42\n";
-        f << "\n";       // Empty/null
-        f << "NA\n";     // NA/null
+        f << "\n";    // Empty/null
+        f << "NA\n";  // NA/null
         f << "invalid\n";
     }
 
@@ -309,7 +346,11 @@ void test_as_optional() {
             }
         });
 
-        if (value && *value == 42) { PASS(); } else { FAIL("expected 42"); }
+        if (value && *value == 42) {
+            PASS();
+        } else {
+            FAIL("expected 42");
+        }
     }
 
     TEST("as_optional with null");
