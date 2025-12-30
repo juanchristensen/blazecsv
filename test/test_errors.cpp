@@ -5,8 +5,14 @@
 #include <blazecsv/blazecsv.hpp>
 
 #include <cassert>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
+
+// Cross-platform temp file path
+inline std::string temp_path(const std::string& name) {
+    return (std::filesystem::temp_directory_path() / name).string();
+}
 
 #define TEST(name)                       \
     std::cout << "  " << name << "... "; \
@@ -45,7 +51,7 @@ void test_null_policies() {
     std::cout << "\n=== Null Policies ===\n";
 
     // Use 2-column format to avoid ambiguity with empty lines
-    const std::string filename = "/tmp/test_null.csv";
+    const std::string filename = temp_path("test_null.csv");
     {
         std::ofstream f(filename);
         f << "id,value\n";
@@ -125,7 +131,7 @@ void test_null_policies() {
 void test_parse_errors() {
     std::cout << "\n=== Parse Errors ===\n";
 
-    const std::string filename = "/tmp/test_parse_errors.csv";
+    const std::string filename = temp_path("test_parse_errors.csv");
     {
         std::ofstream f(filename);
         f << "int_col,double_col,bool_col\n";
@@ -246,7 +252,7 @@ void test_parse_errors() {
 void test_column_count_mismatch() {
     std::cout << "\n=== Column Count Handling ===\n";
 
-    const std::string filename = "/tmp/test_columns.csv";
+    const std::string filename = temp_path("test_columns.csv");
     {
         std::ofstream f(filename);
         f << "a,b,c\n";
@@ -286,7 +292,7 @@ void test_column_count_mismatch() {
 void test_empty_file() {
     std::cout << "\n=== Empty File Handling ===\n";
 
-    const std::string filename = "/tmp/test_empty.csv";
+    const std::string filename = temp_path("test_empty.csv");
 
     TEST("empty file");
     {
@@ -323,7 +329,7 @@ void test_empty_file() {
 void test_as_optional() {
     std::cout << "\n=== as_optional Tests ===\n";
 
-    const std::string filename = "/tmp/test_optional.csv";
+    const std::string filename = temp_path("test_optional.csv");
     {
         std::ofstream f(filename);
         f << "value\n";
@@ -402,7 +408,7 @@ void test_as_optional() {
 void test_reader_types() {
     std::cout << "\n=== Reader Type Aliases ===\n";
 
-    const std::string filename = "/tmp/test_types.csv";
+    const std::string filename = temp_path("test_types.csv");
     {
         std::ofstream f(filename);
         f << "a,b\n";
@@ -433,11 +439,11 @@ void test_reader_types() {
     TEST("TsvTurboReader compiles");
     {
         // Create TSV file
-        std::ofstream f("/tmp/test_tsv.tsv");
+        std::ofstream f(temp_path("test_tsv.tsv"));
         f << "a\tb\n1\t2\n";
-        blazecsv::TsvTurboReader<2> reader("/tmp/test_tsv.tsv");
+        blazecsv::TsvTurboReader<2> reader(temp_path("test_tsv.tsv"));
         reader.for_each([](const auto&) {});
-        std::remove("/tmp/test_tsv.tsv");
+        std::remove(temp_path("test_tsv.tsv"));
         PASS();
     }
 

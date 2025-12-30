@@ -6,8 +6,14 @@
 
 #include <cassert>
 #include <cmath>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
+
+// Cross-platform temp file path
+inline std::string temp_path(const std::string& name) {
+    return (std::filesystem::temp_directory_path() / name).string();
+}
 
 #define TEST(name)                       \
     std::cout << "  " << name << "... "; \
@@ -23,7 +29,7 @@ static int tests_passed = 0;
 void test_integer_parsing() {
     std::cout << "\n=== Integer Parsing ===\n";
 
-    const std::string filename = "/tmp/test_int.csv";
+    const std::string filename = temp_path("test_int.csv");
     {
         std::ofstream f(filename);
         f << "value\n";
@@ -90,7 +96,7 @@ void test_integer_parsing() {
 void test_double_parsing() {
     std::cout << "\n=== Double Parsing ===\n";
 
-    const std::string filename = "/tmp/test_double.csv";
+    const std::string filename = temp_path("test_double.csv");
     {
         std::ofstream f(filename);
         f << "value\n";
@@ -175,7 +181,7 @@ void test_double_parsing() {
 void test_boolean_parsing() {
     std::cout << "\n=== Boolean Parsing ===\n";
 
-    const std::string filename = "/tmp/test_bool.csv";
+    const std::string filename = temp_path("test_bool.csv");
     {
         std::ofstream f(filename);
         f << "value\n";
@@ -274,7 +280,7 @@ void test_boolean_parsing() {
 void test_string_parsing() {
     std::cout << "\n=== String Parsing ===\n";
 
-    const std::string filename = "/tmp/test_string.csv";
+    const std::string filename = temp_path("test_string.csv");
     {
         std::ofstream f(filename);
         f << "name,description\n";
@@ -311,7 +317,7 @@ void test_string_parsing() {
 void test_tsv_parsing() {
     std::cout << "\n=== TSV Parsing ===\n";
 
-    const std::string filename = "/tmp/test_tsv.tsv";
+    const std::string filename = temp_path("test_tsv.tsv");
     {
         std::ofstream f(filename);
         f << "id\tname\tvalue\n";
@@ -344,7 +350,7 @@ void test_tsv_parsing() {
 void test_header_access() {
     std::cout << "\n=== Header Access ===\n";
 
-    const std::string filename = "/tmp/test_header.csv";
+    const std::string filename = temp_path("test_header.csv");
     {
         std::ofstream f(filename);
         f << "id,name,score\n";

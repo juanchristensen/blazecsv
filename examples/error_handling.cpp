@@ -4,12 +4,19 @@
 
 #include <blazecsv/blazecsv.hpp>
 
+#include <filesystem>
+
+// Cross-platform temp file path
+inline std::string temp_path(const std::string& name) {
+    return (std::filesystem::temp_directory_path() / name).string();
+}
+
 #include <fstream>
 #include <iostream>
 
 int main() {
     // Create a CSV with some problematic data
-    const std::string filename = "/tmp/errors.csv";
+    const std::string filename = temp_path("errors.csv");
     {
         std::ofstream f(filename);
         f << "id,name,value,active\n";

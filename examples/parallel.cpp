@@ -4,6 +4,13 @@
 
 #include <blazecsv/blazecsv.hpp>
 
+#include <filesystem>
+
+// Cross-platform temp file path
+inline std::string temp_path(const std::string& name) {
+    return (std::filesystem::temp_directory_path() / name).string();
+}
+
 #include <atomic>
 #include <chrono>
 #include <fstream>
@@ -12,7 +19,7 @@
 
 int main() {
     // Create a larger CSV file for parallel processing demo
-    const std::string filename = "/tmp/large_data.csv";
+    const std::string filename = temp_path("large_data.csv");
     const size_t num_rows = 100000;
 
     std::cout << "=== BlazeCSV Parallel Parsing Example ===\n\n";

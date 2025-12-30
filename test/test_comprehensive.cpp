@@ -7,10 +7,16 @@
 
 #include <atomic>
 #include <cmath>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <set>
 #include <thread>
+
+// Cross-platform temp file path
+inline std::string temp_path(const std::string& name) {
+    return (std::filesystem::temp_directory_path() / name).string();
+}
 
 #define TEST(name)                       \
     std::cout << "  " << name << "... "; \
@@ -30,7 +36,7 @@ static int tests_passed = 0;
 void test_date_parsing() {
     std::cout << "\n=== Date Parsing ===\n";
 
-    const std::string filename = "/tmp/test_dates.csv";
+    const std::string filename = temp_path("test_dates.csv");
     {
         std::ofstream f(filename);
         f << "date\n";
@@ -84,7 +90,7 @@ void test_date_parsing() {
 void test_date_parsing_errors() {
     std::cout << "\n=== Date Parsing Errors ===\n";
 
-    const std::string filename = "/tmp/test_bad_dates.csv";
+    const std::string filename = temp_path("test_bad_dates.csv");
     {
         std::ofstream f(filename);
         f << "date\n";
@@ -147,7 +153,7 @@ void test_date_parsing_errors() {
 void test_datetime_parsing() {
     std::cout << "\n=== DateTime Parsing ===\n";
 
-    const std::string filename = "/tmp/test_datetime.csv";
+    const std::string filename = temp_path("test_datetime.csv");
     {
         std::ofstream f(filename);
         f << "datetime\n";
@@ -206,7 +212,7 @@ void test_line_endings() {
     // Test Windows CRLF
     TEST("Windows CRLF line endings");
     {
-        const std::string filename = "/tmp/test_crlf.csv";
+        const std::string filename = temp_path("test_crlf.csv");
         {
             std::ofstream f(filename, std::ios::binary);
             f << "a,b\r\n1,2\r\n3,4\r\n";
@@ -227,7 +233,7 @@ void test_line_endings() {
     // Test Unix LF (already covered, but verify)
     TEST("Unix LF line endings");
     {
-        const std::string filename = "/tmp/test_lf.csv";
+        const std::string filename = temp_path("test_lf.csv");
         {
             std::ofstream f(filename, std::ios::binary);
             f << "a,b\n1,2\n3,4\n";
@@ -248,7 +254,7 @@ void test_line_endings() {
     // Test no trailing newline
     TEST("no trailing newline");
     {
-        const std::string filename = "/tmp/test_no_trail.csv";
+        const std::string filename = temp_path("test_no_trail.csv");
         {
             std::ofstream f(filename, std::ios::binary);
             f << "a,b\n1,2\n3,4";  // No trailing newline
@@ -274,7 +280,7 @@ void test_line_endings() {
     // depending on SIMD implementation. Accept 3 or 4 rows as valid.
     TEST("mixed line endings");
     {
-        const std::string filename = "/tmp/test_mixed.csv";
+        const std::string filename = temp_path("test_mixed.csv");
         {
             std::ofstream f(filename, std::ios::binary);
             f << "a,b\n1,2\r\n3,4\n5,6\r\n";  // Mixed
@@ -301,7 +307,7 @@ void test_line_endings() {
 void test_whitespace() {
     std::cout << "\n=== Whitespace Handling ===\n";
 
-    const std::string filename = "/tmp/test_whitespace.csv";
+    const std::string filename = temp_path("test_whitespace.csv");
     {
         std::ofstream f(filename);
         f << "name,value\n";
@@ -359,7 +365,7 @@ void test_custom_delimiters() {
     // Pipe delimiter
     TEST("pipe delimiter");
     {
-        const std::string filename = "/tmp/test_pipe.csv";
+        const std::string filename = temp_path("test_pipe.csv");
         {
             std::ofstream f(filename);
             f << "a|b|c\n1|2|3\n";
@@ -382,7 +388,7 @@ void test_custom_delimiters() {
     // Semicolon delimiter
     TEST("semicolon delimiter");
     {
-        const std::string filename = "/tmp/test_semi.csv";
+        const std::string filename = temp_path("test_semi.csv");
         {
             std::ofstream f(filename);
             f << "a;b\n10;20\n";
@@ -404,7 +410,7 @@ void test_custom_delimiters() {
     // Colon delimiter
     TEST("colon delimiter");
     {
-        const std::string filename = "/tmp/test_colon.csv";
+        const std::string filename = temp_path("test_colon.csv");
         {
             std::ofstream f(filename);
             f << "key:value\nfoo:bar\n";
@@ -436,7 +442,7 @@ void test_edge_cases() {
     // Single row
     TEST("single data row");
     {
-        const std::string filename = "/tmp/test_single.csv";
+        const std::string filename = temp_path("test_single.csv");
         {
             std::ofstream f(filename);
             f << "a,b\n1,2\n";
@@ -456,7 +462,7 @@ void test_edge_cases() {
     // Many columns
     TEST("many columns (20)");
     {
-        const std::string filename = "/tmp/test_many_cols.csv";
+        const std::string filename = temp_path("test_many_cols.csv");
         {
             std::ofstream f(filename);
             f << "c0,c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16,c17,c18,c19\n";
@@ -483,7 +489,7 @@ void test_edge_cases() {
     // Consecutive delimiters (empty fields)
     TEST("consecutive delimiters (empty fields)");
     {
-        const std::string filename = "/tmp/test_empty_fields.csv";
+        const std::string filename = temp_path("test_empty_fields.csv");
         {
             std::ofstream f(filename);
             f << "a,b,c\n1,,3\n";  // Middle field empty
@@ -504,7 +510,7 @@ void test_edge_cases() {
     // Trailing empty columns
     TEST("trailing empty column");
     {
-        const std::string filename = "/tmp/test_trailing.csv";
+        const std::string filename = temp_path("test_trailing.csv");
         {
             std::ofstream f(filename);
             f << "a,b,c\n1,2,\n";  // Trailing empty
@@ -525,7 +531,7 @@ void test_edge_cases() {
     // All empty row
     TEST("all empty fields in row");
     {
-        const std::string filename = "/tmp/test_all_empty.csv";
+        const std::string filename = temp_path("test_all_empty.csv");
         {
             std::ofstream f(filename);
             f << "a,b,c\n,,\n";
@@ -548,7 +554,7 @@ void test_edge_cases() {
     // Very long field
     TEST("very long field (10KB)");
     {
-        const std::string filename = "/tmp/test_long.csv";
+        const std::string filename = temp_path("test_long.csv");
         std::string long_value(10000, 'x');
         {
             std::ofstream f(filename);
@@ -575,7 +581,7 @@ void test_edge_cases() {
 void test_for_each_until() {
     std::cout << "\n=== for_each_until Tests ===\n";
 
-    const std::string filename = "/tmp/test_until.csv";
+    const std::string filename = temp_path("test_until.csv");
     {
         std::ofstream f(filename);
         f << "id\n";
@@ -663,7 +669,7 @@ void test_for_each_until() {
 void test_parallel_reader_correctness() {
     std::cout << "\n=== ParallelReader Correctness ===\n";
 
-    const std::string filename = "/tmp/test_parallel.csv";
+    const std::string filename = temp_path("test_parallel.csv");
     const size_t num_rows = 10000;
 
     // Generate data with known sum
@@ -752,7 +758,7 @@ void test_parallel_reader_correctness() {
 void test_many_rows() {
     std::cout << "\n=== Many Rows ===\n";
 
-    const std::string filename = "/tmp/test_many_rows.csv";
+    const std::string filename = temp_path("test_many_rows.csv");
     const size_t target_rows = 100000;
 
     {
@@ -800,7 +806,7 @@ void test_many_rows() {
 void test_fieldref_edge_cases() {
     std::cout << "\n=== FieldRef Edge Cases ===\n";
 
-    const std::string filename = "/tmp/test_fieldref.csv";
+    const std::string filename = temp_path("test_fieldref.csv");
 
     TEST("parse on empty field returns error");
     {

@@ -4,6 +4,13 @@
 
 #include <blazecsv/blazecsv.hpp>
 
+#include <filesystem>
+
+// Cross-platform temp file path
+inline std::string temp_path(const std::string& name) {
+    return (std::filesystem::temp_directory_path() / name).string();
+}
+
 #include <chrono>
 #include <fstream>
 #include <iostream>
@@ -20,7 +27,7 @@ struct Trade {
 
 int main() {
     // Create sample OHLCV data
-    const std::string filename = "/tmp/ohlcv.csv";
+    const std::string filename = temp_path("ohlcv.csv");
     {
         std::ofstream f(filename);
         f << "Date,Open,High,Low,Close,Volume\n";
