@@ -443,7 +443,7 @@ void test_reader_types() {
         f << "a\tb\n1\t2\n";
         blazecsv::TsvTurboReader<2> reader(temp_path("test_tsv.tsv"));
         reader.for_each([](const auto&) {});
-        std::remove(temp_path("test_tsv.tsv"));
+        std::remove(temp_path("test_tsv.tsv").c_str());
         PASS();
     }
 
