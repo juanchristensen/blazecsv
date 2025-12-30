@@ -15,12 +15,13 @@
 - **13M+ rows/second** single-threaded parsing
 - **SIMD-accelerated** delimiter detection (ARM NEON / x86 SSE2)
 - **Zero-copy** field access with `std::string_view`
-- **Compile-time error policies** - pay only for what you use
-- **Flexible null handling** - empty, NA, N/A, null, etc.
+- **Compile-time error policies** — pay only for what you use
+- **Flexible null handling** — empty, NA, N/A, null, etc.
 - **`std::expected`-based** error handling (C++23)
 - **Memory-mapped I/O** for optimal performance
 - **Parallel parsing** for multi-core systems
-- **Header-only** - just include and go
+- **Cross-platform** — Linux, macOS, Windows
+- **Header-only** — just include and go
 
 ## Quick Start
 
@@ -70,20 +71,30 @@ add_subdirectory(blazecsv)
 target_link_libraries(your_target PRIVATE blazecsv::blazecsv)
 ```
 
-## Benchmark Results
+## Performance
 
-Parsing 1M rows of OHLCV stock data (7 columns, ~80 bytes/row):
+Run the included benchmark to measure performance on your system:
 
-| Library | Rows/sec | Relative |
-|---------|----------|----------|
-| **BlazeCSV TurboReader** | 13,200,000 | 1.00x |
-| **BlazeCSV Parallel (4T)** | 14,500,000 | 1.10x |
-| fast-cpp-csv-parser | 8,500,000 | 0.64x |
-| csv-parser | 3,200,000 | 0.24x |
-| csv2 | 2,800,000 | 0.21x |
-| rapidcsv | 1,500,000 | 0.11x |
+```bash
+cmake -B build -DBLAZECSV_BUILD_BENCHMARKS=ON
+cmake --build build
+./build/benchmark/blazecsv_bench
+```
 
-*Tested on Apple M2 Pro, Clang 19, -O3*
+Example output (Apple M2 Pro):
+
+```
+=== BlazeCSV Performance Benchmark ===
+
+System: 12 threads available
+
+--- Large File (1,000,000 rows) ---
+  TurboReader:      76.2 ms  |     13,119,533 rows/sec
+  CheckedReader:    76.8 ms  |     13,020,833 rows/sec
+  SafeReader:       82.1 ms  |     12,180,267 rows/sec
+  for_each_raw:     71.4 ms  |     14,005,602 rows/sec
+  ParallelReader:   68.9 ms  |     14,513,788 rows/sec
+```
 
 ## API Reference
 
@@ -92,7 +103,7 @@ Parsing 1M rows of OHLCV stock data (7 columns, ~80 bytes/row):
 | Type | Error Tracking | Null Detection | Use Case |
 |------|----------------|----------------|----------|
 | `TurboReader<N>` | None | None | Maximum performance |
-| `CheckedReader<N>` | Basic | Standard | Production with basic validation |
+| `CheckedReader<N>` | Basic | Standard | Production with validation |
 | `SafeReader<N>` | Full | Lenient | Development, data exploration |
 | `ParallelReader<N>` | None | None | Large files, multi-core |
 
@@ -138,6 +149,13 @@ using SafeReader = Reader<N, ',', ErrorCheckFull, NullLenient>;
 | `NoNullCheck` | No | No | No | No | No |
 
 ## Examples
+
+See the `examples/` directory for complete working examples:
+
+- **basic.cpp** — Simple parsing and field access
+- **error_handling.cpp** — Using `std::expected` and error policies
+- **parallel.cpp** — Multi-threaded parsing for large files
+- **trading_data.cpp** — OHLCV stock data with date parsing
 
 ### Basic Parsing
 
@@ -213,23 +231,24 @@ reader.for_each_parallel([&](const auto& fields) {
 });
 ```
 
-### TSV Support
+### TSV and Custom Delimiters
 
 ```cpp
 // Tab-separated values
 blazecsv::TsvTurboReader<5> reader("data.tsv");
 
-// Or custom delimiter
+// Custom delimiter (pipe)
 blazecsv::Reader<5, '|', blazecsv::NoErrorCheck, blazecsv::NoNullCheck> reader("data.psv");
 ```
 
-### Raw Pointer Access (Maximum Performance)
+### Raw Pointer Access
+
+For maximum performance when you need direct memory access:
 
 ```cpp
 blazecsv::TurboReader<3> reader("data.csv");
 
 reader.for_each_raw([](const char** starts, const char** ends) {
-    // Direct pointer access to field data
     std::string_view name(starts[0], ends[0] - starts[0]);
 
     int age;
@@ -251,24 +270,30 @@ reader.for_each_until([&count](const auto& fields) {
 
 ## Platform Support
 
-| Platform | SIMD | Status |
-|----------|------|--------|
-| macOS (Apple Silicon) | ARM NEON | Fully supported |
-| macOS (Intel) | SSE2 | Fully supported |
-| Linux (x64) | SSE2 | Fully supported |
-| Linux (ARM64) | NEON | Fully supported |
-| Windows (x64) | SSE2 | Should work (untested) |
+| Platform | Architecture | SIMD | Status |
+|----------|--------------|------|--------|
+| Linux | x86_64 | SSE2 | Fully supported |
+| Linux | ARM64 | NEON | Fully supported |
+| macOS | Apple Silicon | NEON | Fully supported |
+| macOS | Intel | SSE2 | Fully supported |
+| Windows | x86_64 | SSE2 | Fully supported |
 
 ## Requirements
 
-- C++23 compiler (Clang 17+, GCC 13+, MSVC 2022+)
+- C++23 compiler:
+  - GCC 13+
+  - Clang 17+
+  - MSVC 2022 (19.36+)
 - For parallel parsing: `<thread>` support
 
 ## Building from Source
 
 ```bash
-# Configure with examples and tests
-cmake -B build -DBLAZECSV_BUILD_EXAMPLES=ON -DBLAZECSV_BUILD_TESTS=ON
+# Configure with all options
+cmake -B build \
+    -DBLAZECSV_BUILD_EXAMPLES=ON \
+    -DBLAZECSV_BUILD_TESTS=ON \
+    -DBLAZECSV_BUILD_BENCHMARKS=ON
 
 # Build
 cmake --build build
@@ -279,6 +304,11 @@ ctest --test-dir build --output-on-failure
 # Run examples
 ./build/examples/basic
 ./build/examples/trading_data
+./build/examples/error_handling
+./build/examples/parallel
+
+# Run benchmark
+./build/benchmark/blazecsv_bench
 ```
 
 ## Contributing
@@ -287,9 +317,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
-
-## Acknowledgments
-
-- SIMD techniques inspired by various high-performance parsing libraries
-- Memory-mapped I/O patterns from modern systems programming
+MIT License — see [LICENSE](LICENSE) for details.

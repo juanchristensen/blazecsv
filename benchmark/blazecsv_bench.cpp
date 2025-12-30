@@ -1,15 +1,21 @@
 // BlazeCSV Self-Benchmark
 //
-// Quick performance test without external dependencies
+// Performance test showcasing different reader types and access patterns
 
 #include <blazecsv/blazecsv.hpp>
 
 #include <atomic>
 #include <chrono>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <thread>
+
+// Cross-platform temp file path
+inline std::string temp_path(const std::string& name) {
+    return (std::filesystem::temp_directory_path() / name).string();
+}
 
 constexpr size_t SMALL_ROWS = 100'000;
 constexpr size_t LARGE_ROWS = 1'000'000;
@@ -120,7 +126,7 @@ int main() {
     std::cout << "System: " << std::thread::hardware_concurrency() << " threads available\n\n";
 
     // Small file test
-    const std::string small_file = "/tmp/bench_small.csv";
+    const std::string small_file = temp_path("bench_small.csv");
     std::cout << "Generating " << SMALL_ROWS << " rows...\n";
     generate_csv(small_file, SMALL_ROWS);
 
@@ -132,7 +138,7 @@ int main() {
     bench_parallel_reader(small_file, SMALL_ROWS);
 
     // Large file test
-    const std::string large_file = "/tmp/bench_large.csv";
+    const std::string large_file = temp_path("bench_large.csv");
     std::cout << "\nGenerating " << LARGE_ROWS << " rows...\n";
     generate_csv(large_file, LARGE_ROWS);
 
