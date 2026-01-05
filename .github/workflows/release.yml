@@ -30,7 +30,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -90,7 +90,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Configure
         run: cmake -B build -DBLAZECSV_BUILD_TESTS=ON -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }}
@@ -111,7 +111,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Create Source Directory
         run: |
@@ -154,7 +154,7 @@ jobs:
           sha256sum blazecsv-${VERSION}-header-only.hpp > blazecsv-${VERSION}-header-only.hpp.sha256
 
       - name: Upload Archives
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: release-archives
           path: |
@@ -175,7 +175,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -254,7 +254,7 @@ jobs:
 
     steps:
       - name: Download Archives
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: release-archives
           path: dist
@@ -325,7 +325,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Notify Success
         run: |
